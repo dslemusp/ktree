@@ -9,25 +9,13 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from typing_extensions import Self
 
 
 def _validate_list(v: NDArray[np.float64] | list[float]) -> NDArray:
     if isinstance(v, list):
         return np.array(v)
     return v
-
-
-
-class Pose(BaseModel):
-    x: float = Field(default=0.0, description="X translation of origin of child in meters in parent frame")
-    y: float = Field(default=0.0, description="Y translation of origin of child in meters in parent frame")
-    z: float = Field(default=0.0, description="Z translation of origin of child in meters in parent frame")
-    rx: float = Field(default=0.0, description="Roll rotation in radians")
-    ry: float = Field(default=0.0, description="Pitch rotation in radians")
-    rz: float = Field(default=0.0, description="Yaw rotation in radians")
-    
-    def from_list(self, pose: list[float]) -> "Pose":
-        return Pose(x=pose[0], y=pose[1], z=pose[2], rx=pose[3], ry=pose[4], rz=pose[5])
 
 
 class Vector(BaseModel):
@@ -93,39 +81,6 @@ class JointType(str, Enum):
     REVOLUTE = "revolute"
     PRISMATIC = "prismatic"
     SPATIAL = "spatial"
-
-
-class JointAxis(Enum):
-    X = 0
-    Y = 1
-    Z = 2
-
-
-class Joint(BaseModel):
-    type: JointType = Field(default=JointType.FIXED, description="Degree of freedom type of the joint")
-    axis: JointAxis | None = Field(
-        default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
-    )
-
-    @model_validator(mode="after")
-    def _axis_validator(self) -> "Joint":
-        match self.type:
-            case JointType.FIXED | JointType.SPATIAL:
-                self.axis = None
-        return self
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def vector(self) -> Vector | None:
-        match self.axis:
-            case JointAxis.X:
-                return Vector(vector=np.array([1.0, 0.0, 0.0]))
-            case JointAxis.Y:
-                return Vector(vector=np.array([0.0, 1.0, 0.0]))
-            case JointAxis.Z:
-                return Vector(vector=np.array([0.0, 0.0, 1.0]))
-            case _:
-                return None
 
 
 class ConfigPose(BaseModel):
@@ -223,8 +178,22 @@ class Rotation(BaseModel):
 
         self.rpy = np.array([rx, ry, rz])
 
-    def __mult__(self, other: "Rotation") -> NDArray:
-        return self.matrix @ other.matrix
+    def __mul__(self, other: Self | Vector | NDArray) -> "Vector | Rotation":
+        if isinstance(other, Vector):
+            return Vector(vector=self.matrix @ other.vector)
+        if isinstance(other, self.__class__):
+            rot = Rotation()
+            rot.matrix = self.matrix @ other.matrix
+            return rot
+        if isinstance(other, np.ndarray):
+            if other.shape == (3,):
+                return Vector(vector=self.matrix @ other)
+            elif other.shape == (3, 3):
+                rot = Rotation()
+                rot.matrix = self.matrix @ other
+                return rot
+            
+        raise NotImplementedError(f"Cannot multiply Rotation with {other}")
 
     def __str__(self) -> str:
         return (
@@ -232,17 +201,60 @@ class Rotation(BaseModel):
         )
 
 
+class Pose(BaseModel):
+    translation: Vector = Field(default=Vector(), description="Translation vector in SI units")
+    rotation: Rotation = Field(default=Rotation(), description="Rotation matrix in SI units or roll pitch yaw angles")
+
+    @classmethod
+    def from_list(cls, pose: NDArray | list) -> "Pose":
+        return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
+
+    def to_list(self) -> list[float]:
+        return list(self.translation.vector) + list(self.rotation.rpy)
+
+
+class JointAxis(Enum):
+    X = 0
+    Y = 1
+    Z = 2
+
+
+class Joint(BaseModel):
+    type: JointType = Field(default=JointType.FIXED, description="Degree of freedom type of the joint")
+    axis: JointAxis | None = Field(
+        default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
+    )
+
+    @model_validator(mode="after")
+    def _axis_validator(self) -> "Joint":
+        match self.type:
+            case JointType.FIXED | JointType.SPATIAL:
+                self.axis = None
+        return self
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def vector(self) -> Vector | None:
+        match self.axis:
+            case JointAxis.X:
+                return Vector(vector=np.array([1.0, 0.0, 0.0]))
+            case JointAxis.Y:
+                return Vector(vector=np.array([0.0, 1.0, 0.0]))
+            case JointAxis.Z:
+                return Vector(vector=np.array([0.0, 0.0, 1.0]))
+            case _:
+                return None
+
+
 class Transformation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    pose: NDArray[np.float64] = Field(
-        default=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    pose: Pose = Field(
+        default=Pose(),
         description=(
             "List or array in SI units or ConfigPose/dict with values in mm/deg. Pose contains 3 values for position"
             " and 3 values for the euler angles following the roll-pitch-yaw convention."
         ),
-        min_length=6,
-        max_length=6,
     )
     parent: str = Field(..., description="Parent frame. The definition of the pose is wrt to this frame")
     child: str = Field(
@@ -252,41 +264,17 @@ class Transformation(BaseModel):
     joint: Joint = Field(default=Joint(), description="Joint connecting parent and child")
 
     @field_validator("pose", mode="before")
-    def _pose_validator(cls, v: NDArray[np.float64] | list[float] | ConfigPose | Pose) -> NDArray:
-        if isinstance(v, ConfigPose):
-            return v.to_pose()
-        if isinstance(v, dict):
-            return ConfigPose(**v).to_pose()
-        if isinstance(v, Pose):
-            return np.array(v.list())
-        if isinstance(v, list):
-            return np.array(v)
+    def _pose_validator(cls, v: NDArray[np.float64] | list[float]) -> Pose:
+        if isinstance(v, list | np.ndarray):
+            return Pose.from_list(v)
         return v
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def translation(self) -> Vector:
-        return Vector(vector=self.pose[:3])
-
-    @translation.setter
-    def translation(self, value: Vector) -> None:
-        self.pose[:3] = value.vector
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def rotation(self) -> Rotation:
-        return Rotation(rpy=self.pose[3:])
-
-    @rotation.setter
-    def rotation(self, value: Rotation) -> None:
-        self.pose[3:] = value.rpy
 
     @computed_field  # type: ignore[misc]
     @property
     def hmatrix(self) -> NDArray:
         homogeneous_matrix = np.eye(4)
-        homogeneous_matrix[:3, :3] = self.rotation.matrix
-        homogeneous_matrix[:3, 3] = self.translation.vector
+        homogeneous_matrix[:3, :3] = self.pose.rotation.matrix
+        homogeneous_matrix[:3, 3] = self.pose.translation.vector
         return homogeneous_matrix
 
     @hmatrix.setter
@@ -295,9 +283,6 @@ class Transformation(BaseModel):
         new_rot.matrix = matrix[:3, :3]
         self.rotation = new_rot
         self.translation = Vector(vector=matrix[:3, 3])
-
-    def to_pose(self) -> Pose:
-        return Pose(x=self.translation.x, y=self.translation.y, z=self.translation.z, rx=self.rotation.rx, ry=self.rotation.ry, rz=self.rotation.rz)
 
     def inv(self) -> "Transformation":
         """
@@ -309,7 +294,7 @@ class Transformation(BaseModel):
         new_pos = -new_rot.matrix @ self.translation.vector
 
         return Transformation(
-            pose=np.concatenate([new_pos, new_rot.rpy]),
+            pose=Pose(translation=Vector(vector=new_pos), rotation=new_rot),
             parent=self.child,
             child=self.parent,
         )
