@@ -1,0 +1,41 @@
+base_frame: yaskawa_base
+end_effector_frame: conn
+
+kinematics_chain:
+  - parent: yaskawa_base
+    child: yaskawa_eff
+    pose:
+      x_mm: 0.0
+      y_mm: 0.0
+      z_mm: 0.0
+      rx_deg: 0.0
+      ry_deg: 0.0
+      rz_deg: 0.0
+  - parent: yaskawa_eff
+    child: checkered_board
+    pose: 
+      x_mm: 0.0
+      y_mm: 0.0
+      z_mm: 0.0
+      rx_deg: 0.0
+      ry_deg: 0.0
+      rz_deg: 0.0
+  - parent: cam
+    child: checkered_board
+    pose: 
+      x_mm: 0.0
+      y_mm: 0.0
+      z_mm: 0.0
+      rx_deg: 0.0
+      ry_deg: 0.0
+      rz_deg: 0.0
+  - parent: cam
+    child: conn
+    pose: 
+      x_mm: 0.0
+      y_mm: 0.0
+      z_mm: 0.0
+      rx_deg: 0.0
+      ry_deg: 0.0
+      rz_deg: 0.0
+  
