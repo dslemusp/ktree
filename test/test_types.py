@@ -1,8 +1,8 @@
-from src.ktree.k_types import Vector, Rotation
 import numpy as np
 import pytest
-from pydantic import ValidationError
 import random
+from ktree.k_types import Rotation, Vector
+from pydantic import ValidationError
 from scipy.spatial.transform import Rotation as R
 
 
@@ -54,14 +54,19 @@ def test_rotation() -> None:
         assert np.isclose(r.ry, ry)
         assert np.isclose(r.rz, rz)
 
+
 def test_mult():
-    #random 3x3 orthonormal matrix
-    rotation1 = Rotation(rpy = [0.12, 0.23, 0.34])
-    #random 3x3 orthonormal matrix
-    rotation2 = Rotation(rpy = [0.1, 0.2, 0.3])
-    #random 3x1 vector
-    vector = Vector(vector = [1, 2, 3])
-    
+    # random 3x3 orthonormal matrix
+    rotation1 = Rotation(rpy=[0.12, 0.23, 0.34])
+    # random 3x3 orthonormal matrix
+    rotation2 = Rotation(rpy=[0.1, 0.2, 0.3])
+    # random 3x1 vector
+    vector = Vector(vector=[1, 2, 3])
+
+    x_vector = Vector(vector=[1, 0, 0])
+    y_vector = Vector(vector=[0, 1, 0])
+
     assert np.allclose(rotation1.matrix @ rotation2.matrix @ vector.vector, ((rotation1 * rotation2) * vector).vector)
-    
-    
+    assert np.allclose((x_vector @ y_vector).vector, np.array([0, 0, 1]))
+
+

@@ -66,11 +66,16 @@ class Vector(BaseModel):
         return Vector(vector=self.vector - other.vector)
 
     def __mul__(self, other: float | object) -> "Vector":
+        """Pairwise multiplication of vectors or multiplication by scalar"""
         if isinstance(other, self.__class__):
             return Vector(vector=self.vector * other.vector)
         if isinstance(other, (int, float)):
             return Vector(vector=self.vector * other)
         raise ValueError(f"Cannot multiply Vector with {other}")
+
+    def __matmul__(self, other: "Vector") -> "Vector":
+        """Cross product of vectors"""
+        return Vector(vector=np.cross(self.vector, other.vector))
 
     def __str__(self) -> str:
         return f"x: {self.x*1000:.3f} mm, y: {self.y*1000:.3f} mm, z: {self.z*1000:.3f} mm"
@@ -192,7 +197,7 @@ class Rotation(BaseModel):
                 rot = Rotation()
                 rot.matrix = self.matrix @ other
                 return rot
-            
+
         raise NotImplementedError(f"Cannot multiply Rotation with {other}")
 
     def __str__(self) -> str:

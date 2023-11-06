@@ -3,7 +3,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, validate_call
-from src.ktree.k_types import JointType, Pose, Transformation
+from src.ktree.k_types import JointType, Pose, Transformation, Vector, Rotation
 from src.ktree.models import KinematicsConfig
 from typing import Any, cast
 from typing_extensions import Self
@@ -29,7 +29,7 @@ class KinematicsTree(BaseModel):
         transformation: Transformation | None = None,
         parent: str | None = None,
         child: str | None = None,
-        pose: Pose | list[float] | NDArray | None = None,
+        pose: Pose | None = None,
         x: float | None = None,
         y: float | None = None,
         z: float | None = None,
@@ -137,9 +137,9 @@ class KinematicsTree(BaseModel):
                 case JointType.PRISMATIC:
                     jacobian[:3, col_j] = joint_wt.rotation * joint_j.joint.vector
                 case JointType.REVOLUTE:
-                    a_i = joint_wt.rotation * joint_j.joint.vector
-                    jacobian[:3, col_j] = np.cross(a_i, end_effector.translation.vector - joint_wt.translation.vector)
-                    jacobian[3:, col_j] = a_i
+                    a_i = cast(Vector, joint_wt.rotation * joint_j.joint.vector)
+                    jacobian[:3, col_j] = (a_i @ (end_effector.pose.translation - joint_wt.pose.translation)).vector
+                    jacobian[3:, col_j] = a_i.vector
                 case JointType.FIXED:
                     ValueError(f"Joint type {joint_j.joint.type} not accepted")
                 case _:
