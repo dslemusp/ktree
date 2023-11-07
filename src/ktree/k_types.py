@@ -100,21 +100,6 @@ class JointType(str, Enum):
     SPATIAL = "spatial"
 
 
-class ConfigPose(BaseModel):
-    x_mm: float
-    y_mm: float
-    z_mm: float
-    rx_deg: float = Field(default=0.0, le=180, gt=-180)
-    ry_deg: float = Field(default=0.0, le=180, gt=-180)
-    rz_deg: float = Field(default=0.0, le=180, gt=-180)
-
-    def to_pose(self) -> NDArray:
-        pose = np.zeros(6)
-        pose[:3] = np.array([self.x_mm, self.y_mm, self.z_mm]) / 1000
-        pose[3:] = np.deg2rad([self.rx_deg, self.ry_deg, self.rz_deg])
-        return pose
-
-
 class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

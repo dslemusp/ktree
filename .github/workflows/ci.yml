@@ -31,7 +31,7 @@ jobs:
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
         with:
-          version: 1.5.1
+          version: 1.6.1
           installer-parallel: true
 
       # Necessary to pull in dependencies specified as github repositories.
@@ -57,5 +57,5 @@ jobs:
         # continue-on-error: true
 
       - name: Run tests
-        run: poetry run pytest tests/kinematics_test.py
+        run: poetry run pytest
         
