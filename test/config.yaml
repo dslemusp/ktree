@@ -4,37 +4,40 @@ end_effector_frame: conn
 kinematics_chain:
   - parent: yaskawa_base
     child: yaskawa_eff
+    joint:
+      axis: x
+      type: prismatic
     pose:
-      x_mm: 0.0
-      y_mm: 0.0
-      z_mm: 0.0
-      rx_deg: 0.0
-      ry_deg: 0.0
+      x_mm: 1.0
+      y_m: 0.002
+      z_mm: 3.0
+      rx_deg: 180.0
+      ry_rad: 0.0
       rz_deg: 0.0
   - parent: yaskawa_eff
     child: checkered_board
     pose: 
-      x_mm: 0.0
-      y_mm: 0.0
-      z_mm: 0.0
+      x_mm: 4.0
+      y_mm: 5.0
+      z_mm: 6.0
       rx_deg: 0.0
       ry_deg: 0.0
       rz_deg: 0.0
   - parent: cam
     child: checkered_board
     pose: 
-      x_mm: 0.0
-      y_mm: 0.0
-      z_mm: 0.0
+      x_mm: 7.0
+      y_mm: 8.0
+      z_mm: 9.0
       rx_deg: 0.0
       ry_deg: 0.0
       rz_deg: 0.0
   - parent: cam
     child: conn
     pose: 
-      x_mm: 0.0
-      y_mm: 0.0
-      z_mm: 0.0
+      x_mm: 10.0
+      y_mm: 11.0
+      z_mm: 12.0
       rx_deg: 0.0
       ry_deg: 0.0
       rz_deg: 0.0

@@ -11,6 +11,18 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+M_SUFFIX = "_m"
+RAD_SUFFIX = "_rad"
+MM_SUFFIX = "_mm"
+DEG_SUFFIX = "_deg"
+X = "x"
+Y = "y"
+Z = "z"
+RX = "rx"
+RY = "ry"
+RZ = "rz"
+POSE = [X, Y, Z, RX, RY, RZ]
+
 
 def _validate_list(v: NDArray[np.float64] | list[float]) -> NDArray:
     if isinstance(v, list):
@@ -218,10 +230,10 @@ class Pose(BaseModel):
         return list(self.translation.vector) + list(self.rotation.rpy)
 
 
-class JointAxis(Enum):
-    X = 0
-    Y = 1
-    Z = 2
+class JointAxis(str, Enum):
+    X = "x"
+    Y = "y"
+    Z = "z"
 
 
 class Joint(BaseModel):
@@ -270,8 +282,30 @@ class Transformation(BaseModel):
 
     @field_validator("pose", mode="before")
     def _pose_validator(cls, v: NDArray[np.float64] | list[float]) -> Pose:
-        if isinstance(v, list | np.ndarray):
-            return Pose.from_list(v)
+        match v:
+            case list() | np.ndarray():
+                return Pose.from_list(v)
+            case dict():
+                pose_dict = dict()
+                for key, value in v.items():
+                    if key.endswith(MM_SUFFIX):
+                        pose_dict[key.replace(MM_SUFFIX, M_SUFFIX)] = value / 1000
+                    elif key.endswith(DEG_SUFFIX):
+                        pose_dict[key.replace(DEG_SUFFIX, RAD_SUFFIX)] = np.deg2rad(value)
+                    elif key.endswith(RAD_SUFFIX) | key.endswith(M_SUFFIX):
+                        pose_dict[key] = value
+                    else:
+                        raise ValueError(f"Invalid key {key} in pose dict. Check config file.")
+                return Pose.from_list(
+                    [
+                        pose_dict[X + M_SUFFIX],
+                        pose_dict[Y + M_SUFFIX],
+                        pose_dict[Z + M_SUFFIX],
+                        pose_dict[RX + RAD_SUFFIX],
+                        pose_dict[RY + RAD_SUFFIX],
+                        pose_dict[RZ + RAD_SUFFIX],
+                    ]
+                )
         return v
 
     @computed_field  # type: ignore[misc]
@@ -286,17 +320,17 @@ class Transformation(BaseModel):
     def hmatrix(self, matrix: NDArray) -> None:
         new_rot = Rotation()
         new_rot.matrix = matrix[:3, :3]
-        self.rotation = new_rot
-        self.translation = Vector(vector=matrix[:3, 3])
+        self.pose.rotation = new_rot
+        self.pose.translation = Vector(vector=matrix[:3, 3])
 
     def inv(self) -> "Transformation":
         """
         Returns the inverse transformation.
         """
         new_rot = Rotation()
-        new_rot.matrix = self.rotation.matrix.T
+        new_rot.matrix = self.pose.rotation.matrix.T
 
-        new_pos = -new_rot.matrix @ self.translation.vector
+        new_pos = -new_rot.matrix @ self.pose.translation.vector
 
         return Transformation(
             pose=Pose(translation=Vector(vector=new_pos), rotation=new_rot),
@@ -308,14 +342,14 @@ class Transformation(BaseModel):
         """
         Returns the transformation with zero rotation.
         """
-        self.rotation = Rotation()
+        self.pose.rotation = Rotation()
         return self
 
     def reset_translation(self) -> "Transformation":
         """
         Returns the transformation with zero translation.
         """
-        self.translation = Vector()
+        self.pose.translation = Vector()
         return self
 
     def __mul__(self, other: "Transformation") -> "Transformation":
@@ -338,7 +372,7 @@ class Transformation(BaseModel):
             return False
 
     def __str__(self) -> str:
-        return f"{self.child.upper()} in {self.parent.upper()} Pose({self.translation}, {self.rotation})"
+        return f"{self.child.upper()} in {self.parent.upper()} Pose({self.pose.translation}, {self.pose.rotation})"
 
     def __hash__(self) -> int:
         return id(self)

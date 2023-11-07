@@ -3,7 +3,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, validate_call
-from src.ktree.k_types import JointType, Pose, Transformation, Vector, Rotation
+from src.ktree.k_types import JointType, Pose, Transformation, Vector
 from src.ktree.models import KinematicsConfig
 from typing import Any, cast
 from typing_extensions import Self
@@ -13,10 +13,11 @@ class KinematicsTree(BaseModel):
     config: KinematicsConfig
 
     def model_post_init(self, __context: Any) -> None:
+        logger.info("Initializing kinematic chain")
         """Create kinematic chain based on parsed configuration"""
         self._k_chain = nx.DiGraph()
-        self.joints = [t for t in self.config.transformations if t.joint.type != JointType.FIXED]
-        self._n_actuated_joints = len(self.joints)
+        self._joints = [t for t in self.config.transformations if t.joint.type != JointType.FIXED]
+        self._n_actuated_joints = len(self._joints)
 
         logger.debug("Kinematic chain nodes".upper())
         for transformation in self.config.transformations:
@@ -67,17 +68,17 @@ class KinematicsTree(BaseModel):
                 transformation.pose = pose
             else:
                 if x is not None:
-                    transformation.translation.x = x
+                    transformation.pose.translation.x = x
                 if y is not None:
-                    transformation.translation.y = y
+                    transformation.pose.translation.y = y
                 if z is not None:
-                    transformation.translation.z = z
+                    transformation.pose.translation.z = z
                 if rx is not None:
-                    transformation.rotation.rx = rx
+                    transformation.pose.rotation.rx = rx
                 if ry is not None:
-                    transformation.rotation.ry = ry
+                    transformation.pose.rotation.ry = ry
                 if rz is not None:
-                    transformation.rotation.rz = rz
+                    transformation.pose.rotation.rz = rz
 
         remove_edges = False
         if not self._k_chain.has_edge(transformation.parent, transformation.child):
@@ -126,7 +127,7 @@ class KinematicsTree(BaseModel):
 
         end_effector = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
 
-        for col_j, joint_j in enumerate(self.joints):
+        for col_j, joint_j in enumerate(self._joints):
             joint_wt = self.get_transformation(parent=self.config.base, child=joint_j.parent)
             if joint_j.joint.vector is None:
                 raise ValueError(
@@ -135,9 +136,9 @@ class KinematicsTree(BaseModel):
                 )
             match joint_j.joint.type:
                 case JointType.PRISMATIC:
-                    jacobian[:3, col_j] = joint_wt.rotation * joint_j.joint.vector
+                    jacobian[:3, col_j] = joint_wt.pose.rotation * joint_j.joint.vector
                 case JointType.REVOLUTE:
-                    a_i = cast(Vector, joint_wt.rotation * joint_j.joint.vector)
+                    a_i = cast(Vector, joint_wt.pose.rotation * joint_j.joint.vector)
                     jacobian[:3, col_j] = (a_i @ (end_effector.pose.translation - joint_wt.pose.translation)).vector
                     jacobian[3:, col_j] = a_i.vector
                 case JointType.FIXED:
@@ -148,16 +149,16 @@ class KinematicsTree(BaseModel):
         # analitical_jacobian
         b_matrix = np.array(
             [
-                [1, 0, np.sin(end_effector.rotation.ry)],
+                [1, 0, np.sin(end_effector.pose.rotation.ry)],
                 [
                     0,
-                    np.cos(end_effector.rotation.rx),
-                    -np.cos(end_effector.rotation.ry) * np.sin(end_effector.rotation.rx),
+                    np.cos(end_effector.pose.rotation.rx),
+                    -np.cos(end_effector.pose.rotation.ry) * np.sin(end_effector.pose.rotation.rx),
                 ],
                 [
                     0,
-                    np.sin(end_effector.rotation.rx),
-                    np.cos(end_effector.rotation.rx) * np.cos(end_effector.rotation.ry),
+                    np.sin(end_effector.pose.rotation.rx),
+                    np.cos(end_effector.pose.rotation.rx) * np.cos(end_effector.pose.rotation.ry),
                 ],
             ]
         )
