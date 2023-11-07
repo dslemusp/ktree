@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  WORKSPACE: ${{ github.workspace }}
+  PYTHON_VERSION: 3.10.13
+
+jobs:
+
+  Linux:
+    name: Linux
+    runs-on: ubuntu-latest
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+          submodules: 'recursive'
+          token: ${{ secrets.CI_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.5.1
+          installer-parallel: true
+
+      # Necessary to pull in dependencies specified as github repositories.
+      - name: Authenticate with github.com
+        run: |
+          git config --global credential.helper store
+          git config --global --add "url.https://github.com/.insteadOf" "git@github.com:"
+          echo "${{ secrets.CI_GIT_CREDENTIALS }}" >> ~/.git-credentials
+
+      # # Necessary to pull in dependencies from our private Python repository.
+      - name: Authenticate poetry with cloudsmith.com
+        run: poetry config -- http-basic.rocsys token "${{ secrets.CLOUDSMITH_PYTHON_TOKEN  }}"
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Lint and format
+        run: poetry run flake8
+        # continue-on-error: true
+
+      - name: Type Checking
+        run: poetry run mypy .
+        # continue-on-error: true
+
+      - name: Run tests
+        run: poetry run pytest tests/kinematics_test.py
+        
