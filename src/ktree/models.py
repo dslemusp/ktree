@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from pydantic import BaseModel, Field
-from src.ktree.k_types import Transformation
+from ktree.k_types import Transformation
 
 
 class KinematicsConfig(BaseModel):
