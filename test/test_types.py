@@ -1,13 +1,11 @@
 import numpy as np
 import pytest
 import random
+from ktree import KinematicsConfig, KinematicsTree, Rotation, Vector  # mypy: ignore
 from loguru import logger
 from pathlib import Path
 from pydantic import ValidationError
 from scipy.spatial.transform import Rotation as R
-from src.ktree.k_types import Rotation, Vector
-from src.ktree.ktree import KinematicsTree
-from src.ktree.models import KinematicsConfig
 
 
 def test_vector() -> None:
