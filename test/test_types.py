@@ -11,7 +11,7 @@ from scipy.spatial.transform import Rotation as R
 
 
 def test_vector() -> None:
-    test_list = [1, 2, 3]
+    test_list = [1.0, 2.0, 3.0]
     v = Vector(vector=test_list)
     assert v.x == 1
     assert v.y == 2
@@ -30,6 +30,7 @@ def test_vector() -> None:
     # Test unit vector
     v = Vector(vector=[10, 0, 0])
     assert np.allclose(v.to_unit().vector, np.array([1, 0, 0]))
+    assert Vector(vector=[1.234, 2.234, 3.234]) == Vector(vector=[1.234, 2.234, 3.234])
 
 
 def test_rotation() -> None:
@@ -57,6 +58,8 @@ def test_rotation() -> None:
         assert np.isclose(r.rx, rx)
         assert np.isclose(r.ry, ry)
         assert np.isclose(r.rz, rz)
+
+    assert Rotation(rpy=[1.2, 1.3, 1.4]) == Rotation(rpy=[1.2, 1.3, 1.4])
 
 
 def test_mult() -> None:

@@ -24,7 +24,7 @@ RZ = "rz"
 POSE = [X, Y, Z, RX, RY, RZ]
 
 
-def _validate_list(v: NDArray[np.float64] | list[float]) -> NDArray:
+def _validate_list(v: NDArray[np.float_] | list[float]) -> NDArray:
     if isinstance(v, list):
         return np.array(v)
     return v
@@ -33,10 +33,13 @@ def _validate_list(v: NDArray[np.float64] | list[float]) -> NDArray:
 class Vector(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    vector: NDArray[np.float64] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+    vector: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
 
     # validators
-    _vector_validator = field_validator("vector", mode="before")(_validate_list)
+    @field_validator("vector", mode="before")
+    @classmethod
+    def _vector_validation(cls, v: NDArray[np.float_] | list[float]) -> NDArray:
+        return _validate_list(v)
 
     @computed_field  # type: ignore[misc]
     @property
@@ -92,6 +95,12 @@ class Vector(BaseModel):
     def __str__(self) -> str:
         return f"x: {self.x*1000:.3f} mm, y: {self.y*1000:.3f} mm, z: {self.z*1000:.3f} mm"
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return np.allclose(self.vector, other.vector)
+        else:
+            raise NotImplementedError(f"Cannot compare Vector with {other}")
+
 
 class JointType(str, Enum):
     FIXED = "fixed"
@@ -103,10 +112,14 @@ class JointType(str, Enum):
 class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    rpy: NDArray[np.float64] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+    rpy: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
 
     # validators
-    _rpy_validator = field_validator("rpy", mode="before")(_validate_list)
+    # _rpy_validator = field_validator("rpy", mode="before")(_validate_list)
+    @field_validator("rpy", mode="before")
+    @classmethod
+    def _rpy_validator(cls, v: NDArray[np.float_] | list[float]) -> NDArray:
+        return _validate_list(v)
 
     @staticmethod
     def rot_x(angle: float) -> NDArray:
@@ -180,7 +193,7 @@ class Rotation(BaseModel):
 
         self.rpy = np.array([rx, ry, rz])
 
-    def __mul__(self, other: Self | Vector | NDArray) -> "Vector | Rotation":
+    def __mul__(self, other: Self | Vector | NDArray[np.float_]) -> "Vector | Rotation":
         if isinstance(other, Vector):
             return Vector(vector=self.matrix @ other.vector)
         if isinstance(other, self.__class__):
@@ -202,20 +215,32 @@ class Rotation(BaseModel):
             f"rx: {np.rad2deg(self.rx):.1f} deg, ry: {np.rad2deg(self.ry):.1f} deg, rz: {np.rad2deg(self.rz):.1f} deg"
         )
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return np.allclose(self.rpy, other.rpy)
+        else:
+            raise NotImplementedError(f"Cannot compare Rotation with {other}")
+
 
 class Pose(BaseModel):
     translation: Vector = Field(default=Vector(), description="Translation vector in SI units")
     rotation: Rotation = Field(default=Rotation(), description="Rotation matrix in SI units or roll pitch yaw angles")
 
     @classmethod
-    def from_list(cls, pose: NDArray | list) -> "Pose":
-        return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
+    def from_list(cls, pose: NDArray[np.float_] | list[float]) -> "Pose":
+        return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))  # type: ignore[arg-type]
 
     def to_list(self) -> list[float]:
         return list(self.translation.vector) + list(self.rotation.rpy)
 
     def __str__(self) -> str:
         return f"Pose({self.translation}, {self.rotation})"
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.translation == other.translation and self.rotation == other.rotation
+        else:
+            raise NotImplementedError(f"Cannot compare Pose with {other}")
 
 
 class JointAxis(str, Enum):
@@ -250,6 +275,12 @@ class Joint(BaseModel):
             case _:
                 return None
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.type == other.type and self.axis == other.axis
+        else:
+            raise NotImplementedError(f"Cannot compare Joint with {other}")
+
 
 class Transformation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
@@ -257,8 +288,9 @@ class Transformation(BaseModel):
     pose: Pose = Field(
         default=Pose(),
         description=(
-            "List or array in SI units or ConfigPose/dict with values in mm/deg. Pose contains 3 values for position"
-            " and 3 values for the euler angles following the roll-pitch-yaw convention."
+            "List or ndarray in SI units or dict with values with units specified in each field as suffix of the type"
+            "_mm, _m, _rad, _deg. Pose contains 3 values for position and 3 values for the euler angles following the"
+            " roll-pitch-yaw convention."
         ),
     )
     parent: str = Field(..., description="Parent frame. The definition of the pose is wrt to this frame")
@@ -269,7 +301,8 @@ class Transformation(BaseModel):
     joint: Joint = Field(default=Joint(), description="Joint connecting parent and child")
 
     @field_validator("pose", mode="before")
-    def _pose_validator(cls, v: NDArray[np.float64] | list[float]) -> Pose:
+    @classmethod
+    def _pose_validator(cls, v: NDArray[np.float_] | list[float]) -> Pose:
         match v:
             case list() | np.ndarray():
                 return Pose.from_list(v)
@@ -355,7 +388,7 @@ class Transformation(BaseModel):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.parent == other.parent and self.child == other.child
+            return self.parent == other.parent and self.child == other.child and self.pose == other.pose
         else:
             return False
 

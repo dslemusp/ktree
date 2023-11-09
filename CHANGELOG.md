@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.1.3
+
+### Fix
+- Type checking errors
+
+### Add
+- Support for `__eq__` in types. 
+
 ## 0.1.2
 
 ### Add
