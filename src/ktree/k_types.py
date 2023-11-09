@@ -214,6 +214,9 @@ class Pose(BaseModel):
     def to_list(self) -> list[float]:
         return list(self.translation.vector) + list(self.rotation.rpy)
 
+    def __str__(self) -> str:
+        return f"Pose({self.translation}, {self.rotation})"
+
 
 class JointAxis(str, Enum):
     X = "x"

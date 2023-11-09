@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.1.2
+
+### Add
+- Implement `__str__` function in type Pose for printing.
+
+## 0.1.1
+
+### Fix
+- Import issue in testing.
+
 ## 0.1.0
 
 ### Added

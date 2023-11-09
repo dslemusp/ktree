@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
 import random
-from ktree import KinematicsConfig, KinematicsTree, Rotation, Vector  # mypy: ignore
+from ktree.k_types import Rotation, Vector
+from ktree.ktree import KinematicsTree
+from ktree.models import KinematicsConfig
 from loguru import logger
 from pathlib import Path
 from pydantic import ValidationError
