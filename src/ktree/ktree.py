@@ -54,6 +54,13 @@ class KinematicsTree(BaseModel):
         if transformation is None:
             if parent is None or child is None:
                 raise ValueError("In the absence of a transformation object, parent and child must be specified")
+
+            if not self._k_chain.has_node(parent) or not self._k_chain.has_node(child):
+                raise ValueError(
+                    f"Parent {parent.upper()} or child {child.upper()} not in kinematic chain ->"
+                    f" {[frame.upper() for frame in self._k_chain.nodes]}"
+                )
+
             # Get current transformation
             if not self._k_chain.has_edge(parent, child):
                 # New transformation

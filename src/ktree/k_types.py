@@ -35,6 +35,10 @@ class Vector(BaseModel):
 
     vector: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
 
+    def __init__(self, vector: NDArray[np.float_] | list[float] = np.array([0.0, 0.0, 0.0])) -> None:
+        super().__init__(**dict(vector=vector))
+        self.vector = _validate_list(self.vector)
+
     # validators
     @field_validator("vector", mode="before")
     @classmethod
@@ -113,6 +117,10 @@ class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     rpy: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+
+    def __init__(self, rpy: NDArray[np.float_] | list[float] = np.array([0.0, 0.0, 0.0])) -> None:
+        super().__init__(**dict(rpy=rpy))
+        self.rpy = _validate_list(self.rpy)
 
     # validators
     # _rpy_validator = field_validator("rpy", mode="before")(_validate_list)
@@ -228,7 +236,7 @@ class Pose(BaseModel):
 
     @classmethod
     def from_list(cls, pose: NDArray[np.float_] | list[float]) -> "Pose":
-        return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))  # type: ignore[arg-type]
+        return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
     def to_list(self) -> list[float]:
         return list(self.translation.vector) + list(self.rotation.rpy)
@@ -302,7 +310,7 @@ class Transformation(BaseModel):
 
     @field_validator("pose", mode="before")
     @classmethod
-    def _pose_validator(cls, v: NDArray[np.float_] | list[float]) -> Pose:
+    def _pose_validator(cls, v: Pose | NDArray[np.float_] | list[float] | dict[str, float]) -> Pose:
         match v:
             case list() | np.ndarray():
                 return Pose.from_list(v)
@@ -327,7 +335,10 @@ class Transformation(BaseModel):
                         pose_dict[RZ + RAD_SUFFIX],
                     ]
                 )
-        return v
+            case Pose():
+                return v
+            case _:
+                raise NotImplementedError(f"Cannot parse pose from {v}")
 
     @computed_field  # type: ignore[misc]
     @property

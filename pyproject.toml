@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "research-ktree"
-version = "0.1.3"
+version = "0.1.4"
 description = "Research python kinematic library"
 authors = ["Daniel Lemus <dlemus@rocsys.com>"]
 readme = "README.md"

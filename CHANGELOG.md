@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.4
+### Fix
+- Type checking errors
+### Add
+- Validation of parent,child frames when passed in update_transformations.
+
 ## 0.1.3
 
 ### Fix
