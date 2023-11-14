@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import random
-from ktree.k_types import Rotation, Vector
+from ktree.k_types import Rotation, Transformation, Vector
 from ktree.ktree import KinematicsTree
 from ktree.models import KinematicsConfig
 from loguru import logger
@@ -75,6 +75,56 @@ def test_mult() -> None:
 
     assert np.allclose(rotation1.matrix @ rotation2.matrix @ vector.vector, ((rotation1 * rotation2) * vector).vector)
     assert np.allclose((x_vector @ y_vector).vector, np.array([0, 0, 1]))
+
+
+def homogeneous_translation_matrix(tx, ty, tz):
+    return np.array([[1, 0, 0, tx], [0, 1, 0, ty], [0, 0, 1, tz], [0, 0, 0, 1]])
+
+
+def homogeneous_rotation_matrix(axis, angle):
+    r = R.from_rotvec(angle * np.array(axis))
+    return r.as_matrix()
+
+
+def multiply_homogeneous_transformations(matrix1, matrix2):
+    return np.dot(matrix1, matrix2)
+
+
+def test_translation_multiplication():
+    matrix1 = Transformation(parent="A", child="B", pose=[2, 3, 4, 0, 0, 0])
+    matrix2 = Transformation(parent="B", child="C", pose=[5, 6, 7, 0, 0, 0])
+
+    expected_result = homogeneous_translation_matrix(7, 9, 11)
+
+    result = matrix1 * matrix2
+
+    assert np.allclose(result.hmatrix, expected_result, atol=1e-5)
+
+
+def test_rotation_multiplication():
+    matrix1 = Transformation(parent="A", child="B", pose=[0, 0, 0, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
+    matrix2 = Transformation(parent="B", child="C", pose=[0, 0, 0, np.deg2rad(30), 0, 0])
+    
+    expected_result = np.eye(4)
+    expected_result[:3, :3] = (R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)).as_matrix()
+
+    result = matrix1 * matrix2
+    # result = multiply_homogeneous_transformations(matrix1, matrix2)
+
+    assert np.allclose(result.hmatrix, expected_result, rtol=1e-3)
+
+
+def test_translation_and_rotation_multiplication():
+    matrix1 = Transformation(parent="A", child="B", pose=[1, 2, 3, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
+    matrix2 = Transformation(parent="B", child="C", pose=[4, 5, 6, np.deg2rad(30), 0, 0])
+    
+    expected_result = np.eye(4)
+    expected_result[:3, :3] = (R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)).as_matrix()
+    expected_result[:3, 3:] = (matrix1.pose.translation.vector + matrix1.pose.rotation.matrix @ matrix2.pose.translation.vector).reshape(3, 1)
+    result = matrix1 * matrix2
+    # result = multiply_homogeneous_transformations(matrix1, matrix2)
+
+    assert np.allclose(result.hmatrix, expected_result, rtol=1e-3)
 
 
 def test_config_load() -> None:
