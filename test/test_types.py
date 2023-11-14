@@ -104,9 +104,11 @@ def test_translation_multiplication():
 def test_rotation_multiplication():
     matrix1 = Transformation(parent="A", child="B", pose=[0, 0, 0, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
     matrix2 = Transformation(parent="B", child="C", pose=[0, 0, 0, np.deg2rad(30), 0, 0])
-    
+
     expected_result = np.eye(4)
-    expected_result[:3, :3] = (R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)).as_matrix()
+    expected_result[:3, :3] = (
+        R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)
+    ).as_matrix()
 
     result = matrix1 * matrix2
     # result = multiply_homogeneous_transformations(matrix1, matrix2)
@@ -117,10 +119,14 @@ def test_rotation_multiplication():
 def test_translation_and_rotation_multiplication():
     matrix1 = Transformation(parent="A", child="B", pose=[1, 2, 3, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
     matrix2 = Transformation(parent="B", child="C", pose=[4, 5, 6, np.deg2rad(30), 0, 0])
-    
+
     expected_result = np.eye(4)
-    expected_result[:3, :3] = (R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)).as_matrix()
-    expected_result[:3, 3:] = (matrix1.pose.translation.vector + matrix1.pose.rotation.matrix @ matrix2.pose.translation.vector).reshape(3, 1)
+    expected_result[:3, :3] = (
+        R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)
+    ).as_matrix()
+    expected_result[:3, 3:] = (
+        matrix1.pose.translation.vector + matrix1.pose.rotation.matrix @ matrix2.pose.translation.vector
+    ).reshape(3, 1)
     result = matrix1 * matrix2
     # result = multiply_homogeneous_transformations(matrix1, matrix2)
 

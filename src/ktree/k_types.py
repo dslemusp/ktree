@@ -235,11 +235,18 @@ class Pose(BaseModel):
     rotation: Rotation = Field(default=Rotation(), description="Rotation matrix in SI units or roll pitch yaw angles")
 
     @classmethod
-    def from_list(cls, pose: NDArray[np.float_] | list[float]) -> "Pose":
+    def from_list(cls, pose: NDArray[np.float_] | list[float], mm_deg: bool = False) -> "Pose":
+        if mm_deg:
+            pose = np.array(pose)
+            pose[0:3] = pose[0:3] / 1000
+            pose[3:6] = np.deg2rad(pose[3:6])
         return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
-    def to_list(self) -> list[float]:
-        return list(self.translation.vector) + list(self.rotation.rpy)
+    def to_list(self, mm_deg: bool = False) -> list[float]:
+        if mm_deg:
+            return list(self.translation.vector * 1000) + list(np.rad2deg(self.rotation.rpy))
+        else:
+            return list(self.translation.vector) + list(self.rotation.rpy)
 
     def __str__(self) -> str:
         return f"Pose({self.translation}, {self.rotation})"

@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.1.5
+### Add
+- Add support for mm_deg in Pose object. You can now create/export poses in mm_deg
+- Add unit testing for homogeneous transformations.
+
 ## 0.1.4
 ### Fix
 - Type checking errors
