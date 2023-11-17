@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.1.6
+### Add
+- Enable remove_transformations from kinematic chain
+
 ## 0.1.5
 ### Add
 - Add support for mm_deg in Pose object. You can now create/export poses in mm_deg

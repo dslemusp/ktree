@@ -96,7 +96,7 @@ class KinematicsTree(BaseModel):
 
         # Remove from kinematic chain
         if remove_edges:
-            self._k_chain.remove_edge(transformation.parent, transformation.child)
+            self._remove_transformation(parent=transformation.parent, child=transformation.child)
 
         return self
 
@@ -173,3 +173,7 @@ class KinematicsTree(BaseModel):
         jacobian_rpy[3:, 3:] = np.linalg.inv(b_matrix)
 
         return jacobian_rpy @ jacobian
+
+    def _remove_transformation(self, parent: str, child: str) -> None:
+        self._k_chain.remove_edge(parent, child)
+        self._k_chain.remove_edge(child, parent)
