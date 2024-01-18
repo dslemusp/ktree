@@ -77,20 +77,20 @@ def test_mult() -> None:
     assert np.allclose((x_vector @ y_vector).vector, np.array([0, 0, 1]))
 
 
-def homogeneous_translation_matrix(tx, ty, tz):
+def homogeneous_translation_matrix(tx: float, ty: float, tz: float) -> np.ndarray:
     return np.array([[1, 0, 0, tx], [0, 1, 0, ty], [0, 0, 1, tz], [0, 0, 0, 1]])
 
 
-def homogeneous_rotation_matrix(axis, angle):
+def homogeneous_rotation_matrix(axis: np.ndarray, angle: float) -> np.ndarray:
     r = R.from_rotvec(angle * np.array(axis))
     return r.as_matrix()
 
 
-def multiply_homogeneous_transformations(matrix1, matrix2):
+def multiply_homogeneous_transformations(matrix1: np.ndarray, matrix2: np.ndarray) -> None:
     return np.dot(matrix1, matrix2)
 
 
-def test_translation_multiplication():
+def test_translation_multiplication() -> None:
     matrix1 = Transformation(parent="A", child="B", pose=[2, 3, 4, 0, 0, 0])
     matrix2 = Transformation(parent="B", child="C", pose=[5, 6, 7, 0, 0, 0])
 
@@ -101,7 +101,7 @@ def test_translation_multiplication():
     assert np.allclose(result.hmatrix, expected_result, atol=1e-5)
 
 
-def test_rotation_multiplication():
+def test_rotation_multiplication() -> None:
     matrix1 = Transformation(parent="A", child="B", pose=[0, 0, 0, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
     matrix2 = Transformation(parent="B", child="C", pose=[0, 0, 0, np.deg2rad(30), 0, 0])
 
@@ -116,7 +116,7 @@ def test_rotation_multiplication():
     assert np.allclose(result.hmatrix, expected_result, rtol=1e-3)
 
 
-def test_translation_and_rotation_multiplication():
+def test_translation_and_rotation_multiplication() -> None:
     matrix1 = Transformation(parent="A", child="B", pose=[1, 2, 3, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
     matrix2 = Transformation(parent="B", child="C", pose=[4, 5, 6, np.deg2rad(30), 0, 0])
 
