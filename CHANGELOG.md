@@ -1,5 +1,35 @@
 # Change Log
 
+## 0.1.7
+### Add
+- Custom serialization of KinematicConfig object.
+
+### Fix
+- Lint in test file.
+
+## 0.1.6
+### Add
+- Enable remove_transformations from kinematic chain
+
+## 0.1.5
+### Add
+- Add support for mm_deg in Pose object. You can now create/export poses in mm_deg
+- Add unit testing for homogeneous transformations.
+
+## 0.1.4
+### Fix
+- Type checking errors
+### Add
+- Validation of parent,child frames when passed in update_transformations.
+
+## 0.1.3
+
+### Fix
+- Type checking errors
+
+### Add
+- Support for `__eq__` in types. 
+
 ## 0.1.2
 
 ### Add
