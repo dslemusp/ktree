@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.1.7
+### Add
+- Custom serialization of KinematicConfig object.
+
+### Fix
+- Lint in test file.
+
 ## 0.1.6
 ### Add
 - Enable remove_transformations from kinematic chain
