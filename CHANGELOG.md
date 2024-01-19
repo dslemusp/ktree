@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.1.7
+## 0.2.0
 ### Add
 - Custom serialization of KinematicConfig object.
 
