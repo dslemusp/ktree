@@ -153,6 +153,7 @@ def test_k_chain() -> None:
 
     # assert np.allclose(end_eff_in_base.pose.translation.vector, np.array([0.022, 0.0022, 0.024]))
 
+
 def test_yaml_dump() -> None:
     kc = KinematicsConfig.parse(Path("./test/config.yaml"))
     kt = KinematicsTree(config=kc)
