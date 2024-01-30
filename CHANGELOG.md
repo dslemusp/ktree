@@ -1,7 +1,10 @@
 # Change Log
 
-## Unreleased
-- Rename `_add_edge` -> `_add_transformation`
+## 0.3.0
+### Change
+- Rename `_add_edge` -> `_add_transformation` [BREAKING]
+
+### Add
 - Move model dump to `KinematicTree` model
 - Add warning on closed loops
 
