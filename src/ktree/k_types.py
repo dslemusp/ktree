@@ -7,6 +7,7 @@ from pydantic import (
     Field,
     computed_field,
     field_validator,
+    model_serializer,
     model_validator,
 )
 from typing_extensions import Self
@@ -415,3 +416,18 @@ class Transformation(BaseModel):
 
     def __hash__(self) -> int:
         return id(self)
+
+    @model_serializer
+    def serialize(self) -> dict:
+        return dict(
+            parent=self.parent,
+            child=self.child,
+            pose=dict(
+                x_m=float(self.pose.translation.x),
+                y_m=float(self.pose.translation.y),
+                z_m=float(self.pose.translation.z),
+                rx_rad=float(self.pose.rotation.rx),
+                ry_rad=float(self.pose.rotation.ry),
+                rz_rad=float(self.pose.rotation.rz),
+            ),
+        )

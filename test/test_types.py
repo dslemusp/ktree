@@ -1,6 +1,8 @@
+import networkx as nx
 import numpy as np
 import pytest
 import random
+import yaml
 from ktree.k_types import Rotation, Transformation, Vector
 from ktree.ktree import KinematicsTree
 from ktree.models import KinematicsConfig
@@ -151,3 +153,15 @@ def test_k_chain() -> None:
     # end_eff_in_base = k_tree.get_transformation(parent=k_config.base, child=k_config.end_effector)
 
     # assert np.allclose(end_eff_in_base.pose.translation.vector, np.array([0.022, 0.0022, 0.024]))
+
+
+def test_yaml_dump() -> None:
+    kc = KinematicsConfig.parse(Path("./test/config.yaml"))
+    kt = KinematicsTree(config=kc)
+    with open("./test/config_dump.yaml", "w") as f:
+        yaml.dump(kt.model_dump(), f)
+    kc_dump = KinematicsConfig.parse(Path("./test/config_dump.yaml"))
+    kt_dump = KinematicsTree(config=kc_dump)
+
+    for transformation in kt_dump._get_all_transformations():
+        assert transformation in kt._get_all_transformations()

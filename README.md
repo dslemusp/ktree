@@ -52,8 +52,9 @@ kinematics_chain:
       ry_deg: 0.0
       rz_deg: 0.0
 ```
-    - Pose transformations must contain clear references to parent and child frames and optionally if the transformation involves an active joint (set via the joint axis-type object).
-    - The library is capable of computing inverse kinematics based on an updated end effector pose (using the robot's jacobian) **Still needs tests**
+
+- Pose transformations must contain clear references to parent and child frames and optionally if the transformation involves an active joint (set via the joint axis-type object).
+<!-- - The library is capable of computing inverse kinematics based on an updated end effector pose (using the robot's jacobian) **Still needs tests** -->
 
 To use the library just import it and load the config file into the object
 

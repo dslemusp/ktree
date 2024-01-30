@@ -4,7 +4,7 @@ from ktree.k_types import JointType, Pose, Transformation, Vector
 from ktree.models import KinematicsConfig
 from loguru import logger
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, validate_call
+from pydantic import BaseModel, ConfigDict, model_serializer, validate_call
 from typing import Any, cast
 from typing_extensions import Self
 
@@ -22,7 +22,7 @@ class KinematicsTree(BaseModel):
         logger.debug("Kinematic chain nodes".upper())
         for transformation in self.config.transformations:
             logger.debug(transformation)
-            self._update_edge(transformation)
+            self._add_transformation(transformation)
 
     @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
     def update_transformation(
@@ -92,31 +92,25 @@ class KinematicsTree(BaseModel):
             remove_edges = True
 
         # Update transformation in kinematic chain
-        self._update_edge(transformation)
+        self._add_transformation(transformation)
 
-        # Remove from kinematic chain
+        # TODO: Add update of the kinematic chain via Jacobian
+        # Remove from kinematic chain if the transformation was not in the chain in the first place
+        # Prevents the addition of a transformation that is not in the kinematic chain
         if remove_edges:
             self._remove_transformation(parent=transformation.parent, child=transformation.child)
 
         return self
 
-    def _update_edge(self, transformation: Transformation) -> None:
-        self._k_chain.add_edge(transformation.parent, transformation.child, T=transformation)
-        self._k_chain.add_edge(transformation.child, transformation.parent, T=transformation.inv())
-
     @validate_call
     def get_transformation(self, parent: str, child: str) -> Transformation:
         """Get pose of child relative to parent"""
 
-        if self._k_chain.has_edge(parent, child):
-            return cast(Transformation, self._k_chain.edges[parent, child]["T"])
-
-        # sps = nx.all_shortest_paths(self._k_chain, source=parent, target=child)
-        # for i, path in enumerate(sps):
-        #     logger.info(f"{child} in {parent} Path {i + 1}:{[item.value.upper() for item in path]}")
-
         sp = cast(list, nx.shortest_path(self._k_chain, source=parent, target=child))
-        # logger.error(f"Shortest path from {parent} to {child} is {sp}")
+
+        if len(list(nx.all_simple_paths(self._k_chain, source=parent, target=child))) > 1:
+            logger.warning(f"Multiple paths from {parent.upper()} to {child.upper()}. Returning shortest path {sp}")
+
         total_transformation = cast(Transformation, self._k_chain.edges[sp[0], sp[1]]["T"])
 
         for node in sp[1:-1]:
@@ -174,6 +168,35 @@ class KinematicsTree(BaseModel):
 
         return jacobian_rpy @ jacobian
 
+    def _add_transformation(self, transformation: Transformation) -> None:
+        self._k_chain.add_edge(transformation.parent, transformation.child, T=transformation)
+        self._k_chain.add_edge(transformation.child, transformation.parent, T=transformation.inv())
+
     def _remove_transformation(self, parent: str, child: str) -> None:
         self._k_chain.remove_edge(parent, child)
         self._k_chain.remove_edge(child, parent)
+
+    def _get_all_transformations(self) -> list[Transformation]:
+        return [transformation["T"] for _, _, transformation in self._k_chain.to_directed().edges(data=True)]
+
+    @model_serializer
+    def serialize(self) -> dict:
+        return dict(
+            base_frame=self.config.base,
+            end_effector_frame=self.config.end_effector,
+            kinematics_chain=[
+                dict(
+                    parent=transformation.parent,
+                    child=transformation.child,
+                    pose=dict(
+                        x_m=float(transformation.pose.translation.x),
+                        y_m=float(transformation.pose.translation.y),
+                        z_m=float(transformation.pose.translation.z),
+                        rx_rad=float(transformation.pose.rotation.rx),
+                        ry_rad=float(transformation.pose.rotation.ry),
+                        rz_rad=float(transformation.pose.rotation.rz),
+                    ),
+                )
+                for transformation in self._get_all_transformations()
+            ],
+        )

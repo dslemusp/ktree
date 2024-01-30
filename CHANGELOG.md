@@ -1,5 +1,10 @@
 # Change Log
 
+## Unreleased
+- Rename `_add_edge` -> `_add_transformation`
+- Move model dump to `KinematicTree` model
+- Add warning on closed loops
+
 ## 0.2.0
 ### Add
 - Custom serialization of KinematicConfig object.
