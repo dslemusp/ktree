@@ -271,7 +271,7 @@ class Joint(BaseModel):
         default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
     )
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # type: ignore[misc]
     def _axis_validator(self) -> "Joint":
         match self.type:
             case JointType.FIXED | JointType.SPATIAL:
@@ -407,7 +407,12 @@ class Transformation(BaseModel):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.parent == other.parent and self.child == other.child and self.pose == other.pose
+            inv_trasformation = other.inv()
+            return (self.parent == other.parent and self.child == other.child and self.pose == other.pose) or (
+                self.parent == inv_trasformation.parent
+                and self.child == inv_trasformation.child
+                and self.pose == inv_trasformation.pose
+            )
         else:
             return False
 

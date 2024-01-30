@@ -153,14 +153,14 @@ def test_k_chain() -> None:
 
     # assert np.allclose(end_eff_in_base.pose.translation.vector, np.array([0.022, 0.0022, 0.024]))
 
-
 def test_yaml_dump() -> None:
     kc = KinematicsConfig.parse(Path("./test/config.yaml"))
     kt = KinematicsTree(config=kc)
+    kt._remove_transformation("cam", "conn")
     with open("./test/config_dump.yaml", "w") as f:
         yaml.dump(kt.model_dump(), f)
     kc_dump = KinematicsConfig.parse(Path("./test/config_dump.yaml"))
     kt_dump = KinematicsTree(config=kc_dump)
-
+    kt = KinematicsTree(config=kc)
     for transformation in kt_dump._get_all_transformations():
         assert transformation in kt._get_all_transformations()
