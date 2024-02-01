@@ -232,14 +232,16 @@ class Rotation(BaseModel):
 
 
 class Pose(BaseModel):
-    translation: Vector = Field(default=Vector(), description="Translation vector in SI units")
-    rotation: Rotation = Field(default=Rotation(), description="Rotation matrix in SI units or roll pitch yaw angles")
+    translation: Vector = Field(default=Vector(), description="Translation vector in SI units (meters).")
+    rotation: Rotation = Field(
+        default=Rotation(), description="Rotation matrix in SI units (radians) or roll pitch yaw angles"
+    )
 
     @classmethod
     def from_list(cls, pose: NDArray[np.float_] | list[float], mm_deg: bool = False) -> "Pose":
         if mm_deg:
-            pose = np.array(pose)
-            pose[0:3] = pose[0:3] / 1000
+            pose = np.array(pose, dtype=float)
+            pose[0:3] = np.divide(pose[0:3], 1000)
             pose[3:6] = np.deg2rad(pose[3:6])
         return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
