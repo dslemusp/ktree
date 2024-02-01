@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.3.1
+
+### Add
+- Test for `KinematicTree` model dump.
+- Add check for transformation for its inverse as well for equality.
+
+### Fix
+- numpy diving with slicing bug (might return zeros divinding if the type is not explicitly set as float)
+- Model dump typo (was exporting the bidirectional graph)
+
 ## 0.3.0
 ### Change
 - Rename `_add_edge` -> `_add_transformation` [BREAKING]

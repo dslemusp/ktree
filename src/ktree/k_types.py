@@ -232,14 +232,16 @@ class Rotation(BaseModel):
 
 
 class Pose(BaseModel):
-    translation: Vector = Field(default=Vector(), description="Translation vector in SI units")
-    rotation: Rotation = Field(default=Rotation(), description="Rotation matrix in SI units or roll pitch yaw angles")
+    translation: Vector = Field(default=Vector(), description="Translation vector in SI units (meters).")
+    rotation: Rotation = Field(
+        default=Rotation(), description="Rotation matrix in SI units (radians) or roll pitch yaw angles"
+    )
 
     @classmethod
     def from_list(cls, pose: NDArray[np.float_] | list[float], mm_deg: bool = False) -> "Pose":
         if mm_deg:
-            pose = np.array(pose)
-            pose[0:3] = pose[0:3] / 1000
+            pose = np.array(pose, dtype=float)
+            pose[0:3] = np.divide(pose[0:3], 1000)
             pose[3:6] = np.deg2rad(pose[3:6])
         return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
@@ -271,7 +273,7 @@ class Joint(BaseModel):
         default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
     )
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # type: ignore[misc]
     def _axis_validator(self) -> "Joint":
         match self.type:
             case JointType.FIXED | JointType.SPATIAL:
@@ -407,7 +409,12 @@ class Transformation(BaseModel):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.parent == other.parent and self.child == other.child and self.pose == other.pose
+            inv_trasformation = other.inv()
+            return (self.parent == other.parent and self.child == other.child and self.pose == other.pose) or (
+                self.parent == inv_trasformation.parent
+                and self.child == inv_trasformation.child
+                and self.pose == inv_trasformation.pose
+            )
         else:
             return False
 

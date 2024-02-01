@@ -177,7 +177,7 @@ class KinematicsTree(BaseModel):
         self._k_chain.remove_edge(child, parent)
 
     def _get_all_transformations(self) -> list[Transformation]:
-        return [transformation["T"] for _, _, transformation in self._k_chain.to_directed().edges(data=True)]
+        return [transformation["T"] for _, _, transformation in self._k_chain.to_undirected().edges(data=True)]
 
     @model_serializer
     def serialize(self) -> dict:
