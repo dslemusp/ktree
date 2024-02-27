@@ -2,6 +2,14 @@
 
 Moved kinematic tree implementation from Pebble into a stand alone library.
 
+## Installation
+
+### As a poetry [^1.6] depedency
+
+```shell
+poetry add git+ssh://git@github.com:rocsys/research-ktree.git#0.3.1  # 0.3.1 as example (modify this for different versions)
+```
+
 ## Usage
 
 The library allows the creation of a static (and soon dynamic) kinematic tree based on pose transformations (Set in a configuration yaml)

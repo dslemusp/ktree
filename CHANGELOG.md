@@ -6,6 +6,7 @@
 
 ### Add
 - Unit testing on multiple path warning.
+- Instructions on calling dependency directly from github.
 
 ## 0.3.1
 ### Add
