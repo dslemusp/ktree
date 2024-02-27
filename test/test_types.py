@@ -2,12 +2,13 @@ import numpy as np
 import pytest
 import random
 import yaml
-from ktree.k_types import Rotation, Transformation, Vector
+from ktree.k_types import Pose, Rotation, Transformation, Vector
 from ktree.ktree import KinematicsTree
 from ktree.models import KinematicsConfig
 from loguru import logger
 from pathlib import Path
 from pydantic import ValidationError
+from pytest_loguru.plugin import caplog  # noqa: F401
 from scipy.spatial.transform import Rotation as R
 
 
@@ -165,3 +166,12 @@ def test_yaml_dump() -> None:
     kt = KinematicsTree(config=kc)
     for transformation in kt_dump._get_all_transformations():
         assert transformation in kt._get_all_transformations()
+
+
+def test_multiple_paths_warning(caplog) -> None:  # type: ignore # noqa: F811
+    kc = KinematicsConfig.parse(Path("./test/config.yaml"))
+    kt = KinematicsTree(config=kc)
+    kt._add_transformation(Transformation(parent="yaskawa_base", child="cam", pose=Pose()))
+    kt.get_transformation(parent="yaskawa_base", child="cam")
+
+    assert "Multiple paths" in caplog.text

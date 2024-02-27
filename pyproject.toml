@@ -33,6 +33,7 @@ mypy = "^1.5.0"
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.0"
 scipy = "^1.11.3"
+pytest-loguru = "^0.3.0"
 
 
 [tool.poetry.group.debug.dependencies]

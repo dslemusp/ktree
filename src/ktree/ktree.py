@@ -107,9 +107,12 @@ class KinematicsTree(BaseModel):
         """Get pose of child relative to parent"""
 
         sp = cast(list, nx.shortest_path(self._k_chain, source=parent, target=child))
+        all_paths = list(nx.all_simple_paths(self._k_chain, source=parent, target=child))
 
-        if len(list(nx.all_simple_paths(self._k_chain, source=parent, target=child))) > 1:
-            logger.warning(f"Multiple paths from {parent.upper()} to {child.upper()}. Returning shortest path {sp}")
+        if len(list(all_paths)) > 1:
+            logger.warning(
+                f"Multiple paths from {parent.upper()} to {child.upper()} -> {all_paths}. Returning shortest path {sp}"
+            )
 
         total_transformation = cast(Transformation, self._k_chain.edges[sp[0], sp[1]]["T"])
 
