@@ -1,7 +1,14 @@
 # Change Log
 
-## 0.3.1
+## 0.3.2
+### Fix
+- Warning on multiple paths now shows the paths found in the tree.
 
+### Add
+- Unit testing on multiple path warning.
+- Instructions on calling dependency directly from github.
+
+## 0.3.1
 ### Add
 - Test for `KinematicTree` model dump.
 - Add check for transformation for its inverse as well for equality.

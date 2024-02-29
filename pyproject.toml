@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "research-ktree"
-version = "0.3.1"
+version = "0.3.2"
 description = "Research python kinematic library"
 authors = ["Daniel Lemus <dlemus@rocsys.com>"]
 readme = "README.md"
@@ -33,6 +33,7 @@ mypy = "^1.5.0"
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.0"
 scipy = "^1.11.3"
+pytest-loguru = "^0.3.0"
 
 
 [tool.poetry.group.debug.dependencies]
