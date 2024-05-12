@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import pandas as pd
 from ktree.k_types import JointType, Pose, Transformation, Vector
 from ktree.models import KinematicsConfig
 from loguru import logger
@@ -16,8 +17,8 @@ class KinematicsTree(BaseModel):
         logger.info("Initializing kinematic chain")
         """Create kinematic chain based on parsed configuration"""
         self._k_chain = nx.DiGraph()
-        self._joints = [t for t in self.config.transformations if t.joint.type != JointType.FIXED]
-        self._n_actuated_joints = len(self._joints)
+        self._actuated_joints = [t for t in self.config.transformations if t.joint.type != JointType.FIXED]
+        self._n_actuated_joints = len(self._actuated_joints)
 
         logger.debug("Kinematic chain nodes".upper())
         for transformation in self.config.transformations:
@@ -106,6 +107,9 @@ class KinematicsTree(BaseModel):
     def get_transformation(self, parent: str, child: str) -> Transformation:
         """Get pose of child relative to parent"""
 
+        if parent == child:
+            return Transformation(parent=parent, child=child)
+
         sp = cast(list, nx.shortest_path(self._k_chain, source=parent, target=child))
         all_paths = list(nx.all_simple_paths(self._k_chain, source=parent, target=child))
 
@@ -131,8 +135,8 @@ class KinematicsTree(BaseModel):
 
         end_effector = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
 
-        for col_j, joint_j in enumerate(self._joints):
-            joint_wt = self.get_transformation(parent=self.config.base, child=joint_j.parent)
+        for col_j, joint_j in enumerate(self._actuated_joints):
+            joint_in_world = self.get_transformation(parent=self.config.base, child=joint_j.child)
             if joint_j.joint.vector is None:
                 raise ValueError(
                     f"Actuated Joint transformation {joint_j.parent.upper()} - {joint_j.child.upper()} has no axis."
@@ -140,10 +144,12 @@ class KinematicsTree(BaseModel):
                 )
             match joint_j.joint.type:
                 case JointType.PRISMATIC:
-                    jacobian[:3, col_j] = joint_wt.pose.rotation * joint_j.joint.vector
+                    jacobian[:3, col_j] = joint_in_world.pose.rotation * joint_j.joint.vector
                 case JointType.REVOLUTE:
-                    a_i = cast(Vector, joint_wt.pose.rotation * joint_j.joint.vector)
-                    jacobian[:3, col_j] = (a_i @ (end_effector.pose.translation - joint_wt.pose.translation)).vector
+                    a_i = cast(Vector, joint_in_world.pose.rotation * joint_j.joint.vector)
+                    jacobian[:3, col_j] = (
+                        a_i @ (end_effector.pose.translation - joint_in_world.pose.translation)
+                    ).vector
                     jacobian[3:, col_j] = a_i.vector
                 case JointType.FIXED:
                     ValueError(f"Joint type {joint_j.joint.type} not accepted")
@@ -170,6 +176,70 @@ class KinematicsTree(BaseModel):
         jacobian_rpy[3:, 3:] = np.linalg.inv(b_matrix)
 
         return jacobian_rpy @ jacobian
+
+    def update_joints_from_list(self, joint_values: NDArray | list[float], mm_deg: bool = False) -> None:
+        """Update joint values"""
+        if isinstance(joint_values, list):
+            joint_values = np.array(joint_values)
+
+        if joint_values.shape != (self._n_actuated_joints,):
+            raise ValueError(
+                f"Invalid joint values shape. Expected ({self._n_actuated_joints},) got {joint_values.shape}"
+            )
+
+        for transformation, joint_value in zip(self._actuated_joints, joint_values):
+            if transformation.joint.type == JointType.REVOLUTE:
+                transformation.joint.value = np.radians(joint_value) if mm_deg else joint_value
+            elif transformation.joint.type == JointType.PRISMATIC:
+                transformation.joint.value = 0.001 * joint_value if mm_deg else joint_value
+            self.update_transformation(transformation=transformation)
+
+    def get_joint_values(self) -> NDArray:
+        """Get joint values"""
+        return np.array([t.joint.value for t in self._actuated_joints])
+
+    def inverse_kinematics(self, target_effector: Transformation) -> pd.DataFrame:
+        """Inverse kinematics using Jacobian"""
+        target_effector.child = "target_effector"
+        start_pose = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
+        # delta_pose = start_pose.inv() * target_effector
+        delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
+        pose_tol = np.array([1e-6] * 6)
+        ITERATIONS = 1000
+        iter = 0
+        dx = delta_pose / 100
+        iterations = []
+        while True:
+            if all(abs(dx) < pose_tol):
+                break
+            if iter > ITERATIONS:
+                break
+            dq = np.linalg.pinv(self._get_jacobian()) @ dx
+            self.update_joints_from_list(self.get_joint_values() + dq)
+            current_effector = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
+            iterations.append(self._iteration_row())
+            logger.debug(current_effector)
+            # logger.debug(current_effector.inv() * target_effector)
+            dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 100
+            logger.debug(dx)
+
+            iter += 1
+
+        logger.info(f"Converged in {iter} iterations")
+        index = pd.MultiIndex.from_tuples(
+            [
+                (f"{self.config.base}_in_{transformation.child}", coordinate)
+                for transformation in self.config.transformations
+                for coordinate in ["x", "y", "z", "rx", "ry", "rz"]
+            ]
+        )
+        return pd.DataFrame(np.array(iterations).reshape(-1, len(self.config.transformations) * 6), columns=index)
+
+    def _iteration_row(self) -> list:
+        return [
+            self.get_transformation(parent=self.config.base, child=transformation.child).pose.to_list()
+            for transformation in self.config.transformations
+        ]
 
     def _add_transformation(self, transformation: Transformation) -> None:
         self._k_chain.add_edge(transformation.parent, transformation.child, T=transformation)

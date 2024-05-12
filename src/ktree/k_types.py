@@ -1,5 +1,6 @@
 import numpy as np
 from enum import Enum
+from loguru import logger
 from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
@@ -272,12 +273,15 @@ class Joint(BaseModel):
     axis: JointAxis | None = Field(
         default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
     )
+    value: float | None = Field(default=None, description="Value of the joint in SI Units (meters or radians)")
 
     @model_validator(mode="after")  # type: ignore[misc]
     def _axis_validator(self) -> "Joint":
         match self.type:
             case JointType.FIXED | JointType.SPATIAL:
                 self.axis = None
+                self.value = None
+
         return self
 
     @computed_field  # type: ignore[misc]
@@ -317,6 +321,27 @@ class Transformation(BaseModel):
         description="Child frame. The pose defines the origin and orientation of the child wrt to the parent",
     )
     joint: Joint = Field(default=Joint(), description="Joint connecting parent and child")
+
+    @model_validator(mode="after")  # type: ignore[misc]
+    def _joint_validator(self) -> "Transformation":
+        match self.joint.type:
+            case JointType.REVOLUTE:
+                match self.joint.axis:
+                    case JointAxis.X:
+                        self.pose.rotation.rx = self.joint.value
+                    case JointAxis.Y:
+                        self.pose.rotation.ry = self.joint.value
+                    case JointAxis.Z:
+                        self.pose.rotation.rz = self.joint.value
+            case JointType.PRISMATIC:
+                match self.joint.axis:
+                    case JointAxis.X:
+                        self.pose.translation.x = self.joint.value
+                    case JointAxis.Y:
+                        self.pose.translation.y = self.joint.value
+                    case JointAxis.Z:
+                        self.pose.translation.z = self.joint.value
+        return self
 
     @field_validator("pose", mode="before")
     @classmethod
@@ -378,6 +403,11 @@ class Transformation(BaseModel):
             pose=Pose(translation=Vector(vector=new_pos), rotation=new_rot),
             parent=self.child,
             child=self.parent,
+            joint=Joint(
+                type=self.joint.type,
+                axis=self.joint.axis,
+                value=None if self.joint.value is None else -self.joint.value,
+            ),
         )
 
     def reset_rotation(self) -> "Transformation":

@@ -2,7 +2,15 @@ import numpy as np
 import pytest
 import random
 import yaml
-from ktree.k_types import Pose, Rotation, Transformation, Vector
+from ktree.k_types import (
+    Joint,
+    JointAxis,
+    JointType,
+    Pose,
+    Rotation,
+    Transformation,
+    Vector,
+)
 from ktree.ktree import KinematicsTree
 from ktree.models import KinematicsConfig
 from loguru import logger
@@ -175,3 +183,67 @@ def test_multiple_paths_warning(caplog) -> None:  # type: ignore # noqa: F811
     kt.get_transformation(parent="yaskawa_base", child="cam")
 
     assert "Multiple paths" in caplog.text
+
+
+def test_jacobian() -> None:
+    kc = KinematicsConfig.parse(Path("./test/2dof.yaml"))
+    kt = KinematicsTree(config=kc)
+    kt._get_jacobian()
+    pass
+
+
+def test_joint_update() -> None:
+    kt = KinematicsTree(
+        config=KinematicsConfig(
+            base_frame="base",
+            end_effector_frame="end_effector",
+            kinematics_chain=[
+                Transformation(
+                    parent="base",
+                    child="joint1",
+                    pose=Pose().from_list([0.0, 0.0, 0.0, 0.0, 0.0, 10.0], mm_deg=True),
+                    joint=Joint(type=JointType.REVOLUTE, axis=JointAxis.Z, value=20.0),
+                ),
+            ],
+        )
+    )
+    assert kt.get_transformation(parent="base", child="joint1").joint.value == 20.0
+    assert kt.get_transformation(parent="joint1", child="base").joint.value == -20.0
+    t1 = Transformation(
+        parent="base",
+        child="joint1",
+        pose=Pose().from_list([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], mm_deg=True),
+        joint=Joint(type=JointType.REVOLUTE, axis=JointAxis.Z, value=np.radians(30.0)),
+    )
+    kt.update_transformation(t1)
+    assert kt.get_transformation(parent="base", child="joint1").joint.value == np.radians(30.0)
+
+    kt._actuated_joints[0].joint.value = np.radians(40.0)
+    kt.update_transformation(transformation=kt._actuated_joints[0])
+    assert kt.get_transformation(parent="base", child="joint1").joint.value == np.radians(40.0)
+
+
+def test_2dof() -> None:
+    kc = KinematicsConfig.parse(Path("./test/2dof.yaml"))
+    kt = KinematicsTree(config=kc)
+    logger.info(kt.get_transformation(parent="base", child="link1"))
+    assert kt._actuated_joints[0].joint.value == 10.0
+    kt.update_joints_from_list([30.0, 40.0], mm_deg=True)
+    assert kt.get_transformation(parent="base", child="link1").joint.value == np.radians(30.0)
+    assert kt.get_transformation(parent="link1", child="link2").joint.value == np.radians(40.0)
+    assert kt._actuated_joints[0].joint.value == np.radians(30.0)
+
+
+def test_ik() -> None:
+    kc = KinematicsConfig.parse(Path("./test/2dof.yaml"))
+    kt = KinematicsTree(config=kc)
+    kt.update_joints_from_list([45.0, 45.0], mm_deg=True)
+    logger.info(kt.get_transformation(parent="base", child="effector"))
+    # kt.get_transformation(parent="base", child="effector")
+
+    kt2 = KinematicsTree(config=KinematicsConfig.parse(Path("./test/2dof.yaml")))
+    logger.info(kt2.get_transformation(parent="base", child="effector"))
+    kt2.inverse_kinematics(target_effector=kt.get_transformation(parent="base", child="effector"))
+    logger.info(kt2.get_transformation(parent="base", child="effector"))
+    logger.info(kt2.get_joint_values() * 180 / np.pi)
+    assert np.allclose(kt2.get_joint_values(), [np.radians(45.0), np.radians(45.0)], atol=1e-4)
