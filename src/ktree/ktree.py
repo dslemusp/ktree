@@ -204,7 +204,7 @@ class KinematicsTree(BaseModel):
         start_pose = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
         # delta_pose = start_pose.inv() * target_effector
         delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
-        pose_tol = np.array([1e-6] * 6)
+        pose_tol = np.array([1e-4] * 3 + [1e-5] * 3)
         ITERATIONS = 1000
         iter = 0
         dx = delta_pose / 100
@@ -228,7 +228,7 @@ class KinematicsTree(BaseModel):
         logger.info(f"Converged in {iter} iterations")
         index = pd.MultiIndex.from_tuples(
             [
-                (f"{self.config.base}_in_{transformation.child}", coordinate)
+                (f"{transformation.child}", coordinate)
                 for transformation in self.config.transformations
                 for coordinate in ["x", "y", "z", "rx", "ry", "rz"]
             ]

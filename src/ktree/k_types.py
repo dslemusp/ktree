@@ -115,6 +115,20 @@ class JointType(str, Enum):
     SPATIAL = "spatial"
 
 
+class Quaternion(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    qx: float = Field(default=0.0)
+    qy: float = Field(default=0.0)
+    qz: float = Field(default=0.0)
+    qw: float = Field(default=1.0)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def vector(self) -> NDArray:
+        return np.array([self.qx, self.qy, self.qz, self.qw])
+
+
 class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -202,6 +216,23 @@ class Rotation(BaseModel):
             rz = np.arctan2(matrix[1, 0] * cy_inv, matrix[0, 0] * cy_inv)
 
         self.rpy = np.array([rx, ry, rz])
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def quaternion(self) -> Quaternion:
+        cr = np.cos(self.rpy[0] * 0.5)
+        sr = np.sin(self.rpy[0] * 0.5)
+        cp = np.cos(self.rpy[1] * 0.5)
+        sp = np.sin(self.rpy[1] * 0.5)
+        cy = np.cos(self.rpy[2] * 0.5)
+        sy = np.sin(self.rpy[2] * 0.5)
+
+        return Quaternion(
+            qx=sr * cp * cy - cr * sp * sy,
+            qy=cr * sp * cy + sr * cp * sy,
+            qz=cr * cp * sy - sr * sp * cy,
+            qw=cr * cp * cy + sr * sp * sy,
+        )
 
     def __mul__(self, other: Self | Vector | NDArray[np.float_]) -> "Vector | Rotation":
         if isinstance(other, Vector):

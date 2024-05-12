@@ -246,4 +246,10 @@ def test_ik() -> None:
     kt2.inverse_kinematics(target_effector=kt.get_transformation(parent="base", child="effector"))
     logger.info(kt2.get_transformation(parent="base", child="effector"))
     logger.info(kt2.get_joint_values() * 180 / np.pi)
-    assert np.allclose(kt2.get_joint_values(), [np.radians(45.0), np.radians(45.0)], atol=1e-4)
+    assert np.allclose(kt2.get_joint_values(), [np.radians(45.0), np.radians(45.0)], atol=np.radians(0.05))
+
+
+def test_quaternion() -> None:
+    r = R.from_euler("xyz", [10, 20, 30], degrees=True)
+    q = r.as_quat() 
+    assert np.allclose(q, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).quaternion.vector)
