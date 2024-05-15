@@ -202,12 +202,12 @@ class KinematicsTree(BaseModel):
         """Inverse kinematics using Jacobian"""
         target_effector.child = "target_effector"
         start_pose = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
-        # delta_pose = start_pose.inv() * target_effector
-        delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
+        delta_pose = start_pose.inv() * target_effector
+        # delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
         pose_tol = np.array([1e-4] * 3 + [1e-5] * 3)
         ITERATIONS = 1000
         iter = 0
-        dx = delta_pose / 100
+        dx = np.linalg.norm(np.array(delta_pose.pose.to_list())) * 0.01
         iterations = [self._iteration_row()]
         while True:
             if all(abs(dx) < pose_tol):
@@ -219,8 +219,8 @@ class KinematicsTree(BaseModel):
             current_effector = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
             iterations.append(self._iteration_row())
             logger.debug(current_effector)
-            # logger.debug(current_effector.inv() * target_effector)
-            dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 100
+            dx = np.linalg.norm(np.array(current_effector.inv() * target_effector).pose.to_list()) * 0.01
+            # dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 100
             logger.debug(dx)
 
             iter += 1
