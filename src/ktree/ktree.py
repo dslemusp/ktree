@@ -208,7 +208,7 @@ class KinematicsTree(BaseModel):
         ITERATIONS = 1000
         iter = 0
         dx = delta_pose / 100
-        iterations = []
+        iterations = [self._iteration_row()]
         while True:
             if all(abs(dx) < pose_tol):
                 break
