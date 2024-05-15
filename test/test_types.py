@@ -237,7 +237,7 @@ def test_2dof() -> None:
 def test_ik() -> None:
     kc = KinematicsConfig.parse(Path("./test/2dof.yaml"))
     kt = KinematicsTree(config=kc)
-    kt.update_joints_from_list([45.0, 45.0], mm_deg=True)
+    kt.update_joints_from_list([90.0, 90.0], mm_deg=True)
     logger.info(kt.get_transformation(parent="base", child="effector"))
     # kt.get_transformation(parent="base", child="effector")
 
@@ -246,7 +246,7 @@ def test_ik() -> None:
     kt2.inverse_kinematics(target_effector=kt.get_transformation(parent="base", child="effector"))
     logger.info(kt2.get_transformation(parent="base", child="effector"))
     logger.info(kt2.get_joint_values() * 180 / np.pi)
-    assert np.allclose(kt2.get_joint_values(), [np.radians(45.0), np.radians(45.0)], atol=np.radians(0.1))
+    assert np.allclose(kt2.get_joint_values(), [np.radians(90.0), np.radians(90.0)], atol=np.radians(0.1))
 
 
 def test_quaternion() -> None:
