@@ -1,6 +1,5 @@
 import numpy as np
 from enum import Enum
-from loguru import logger
 from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
@@ -356,7 +355,7 @@ class Transformation(BaseModel):
     @model_validator(mode="after")  # type: ignore[misc]
     def _joint_validator(self) -> "Transformation":
         match self.joint.type:
-            case JointType.REVOLUTE:
+            case JointType.REVOLUTE if self.joint.value is not None:
                 match self.joint.axis:
                     case JointAxis.X:
                         self.pose.rotation.rx = self.joint.value
@@ -364,7 +363,7 @@ class Transformation(BaseModel):
                         self.pose.rotation.ry = self.joint.value
                     case JointAxis.Z:
                         self.pose.rotation.rz = self.joint.value
-            case JointType.PRISMATIC:
+            case JointType.PRISMATIC if self.joint.value is not None:
                 match self.joint.axis:
                     case JointAxis.X:
                         self.pose.translation.x = self.joint.value

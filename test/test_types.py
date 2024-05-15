@@ -251,5 +251,5 @@ def test_ik() -> None:
 
 def test_quaternion() -> None:
     r = R.from_euler("xyz", [10, 20, 30], degrees=True)
-    q = r.as_quat() 
+    q = r.as_quat()
     assert np.allclose(q, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).quaternion.vector)
