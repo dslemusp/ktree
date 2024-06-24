@@ -224,7 +224,11 @@ class KinematicsTree(BaseModel):
                 scale = 0.001
             else:
                 scale = 0.01
-            dx = np.linalg.norm(np.array((current_effector.inv() * target_effector).pose.to_list())) * np.array((current_effector.inv() * target_effector).pose.to_list()) * scale
+            dx = (
+                np.linalg.norm(np.array((current_effector.inv() * target_effector).pose.to_list()))
+                * np.array((current_effector.inv() * target_effector).pose.to_list())
+                * scale
+            )
             # dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 100
             # logger.debug(dx)
 

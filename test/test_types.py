@@ -121,7 +121,6 @@ def test_rotation_multiplication() -> None:
     ).as_matrix()
 
     result = matrix1 * matrix2
-    # result = multiply_homogeneous_transformations(matrix1, matrix2)
 
     assert np.allclose(result.hmatrix, expected_result, rtol=1e-3)
 
