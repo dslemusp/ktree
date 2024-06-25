@@ -126,15 +126,21 @@ class Quaternion(BaseModel):
     @property
     def vector(self) -> NDArray:
         return np.array([self.qx, self.qy, self.qz, self.qw])
+    
+    
+class AngleAxis(BaseModel):
+    axis: Vector = Field(default=Vector(), description="Axis of rotation")
+    angle: float = Field(default=0.0, description="Angle of rotation in radians")
 
 
 class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     rpy: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+    degrees: bool = Field(default=False)
 
-    def __init__(self, rpy: NDArray[np.float_] | list[float] = np.array([0.0, 0.0, 0.0])) -> None:
-        super().__init__(**dict(rpy=rpy))
+    def __init__(self, rpy: NDArray[np.float_] | list[float] = np.array([0.0, 0.0, 0.0]), degrees: bool = False) -> None:
+        super().__init__(**dict(rpy=rpy, degrees=degrees))
         self.rpy = _validate_list(self.rpy)
 
     # validators
@@ -143,6 +149,11 @@ class Rotation(BaseModel):
     @classmethod
     def _rpy_validator(cls, v: NDArray[np.float_] | list[float]) -> NDArray:
         return _validate_list(v)
+    
+    @model_validator(mode="after")
+    def _to_radians(self) -> "Rotation":
+        self.rpy = np.deg2rad(self.rpy) if self.degrees else self.rpy
+        return self
 
     @staticmethod
     def rot_x(angle: float) -> NDArray:
@@ -232,6 +243,30 @@ class Rotation(BaseModel):
             qz=cr * cp * sy - sr * sp * cy,
             qw=cr * cp * cy + sr * sp * sy,
         )
+        
+    @computed_field  # type: ignore[misc]
+    @property
+    def axis_angle(self) -> AngleAxis:
+        """
+        Returns the axis and angle of rotation from quaternion.
+        """
+        q = self.quaternion.vector
+        angle = 2 * np.arccos(q[3])
+        s = np.sqrt(1 - q[3] ** 2)
+        if s < 1e-3:
+            return Vector(), 0
+        axis = Vector(vector=q[:3] / s)
+        return AngleAxis(axis=axis, angle=angle)
+    
+    
+    @computed_field  # type: ignore[misc]
+    @property
+    def magnitude(self) -> float:
+        """
+            Returns the rotation magnitude based on the quaternion.
+        """
+        return 2 * np.arccos(self.quaternion.qw)
+    
 
     def __mul__(self, other: Self | Vector | NDArray[np.float_]) -> "Vector | Rotation":
         if isinstance(other, Vector):

@@ -252,3 +252,17 @@ def test_quaternion() -> None:
     r = R.from_euler("xyz", [10, 20, 30], degrees=True)
     q = r.as_quat()
     assert np.allclose(q, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).quaternion.vector)
+    
+
+def test_axis_angle() -> None:
+    r = R.from_euler("xyz", [10, 20, 30], degrees=True)
+    q = r.as_rotvec()
+    axis = q / np.linalg.norm(q)
+    angle = np.linalg.norm(q)
+    
+    assert np.allclose(axis, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).axis_angle[0].vector)
+    
+def test_mangnitude() -> None:
+    rpy = [10, 22.1234, 30]
+    r = R.from_euler("xyz", rpy, degrees=True)
+    assert np.isclose(r.magnitude(), Rotation(rpy=rpy, degrees=True).magnitude)
