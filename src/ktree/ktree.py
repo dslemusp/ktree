@@ -205,7 +205,7 @@ class KinematicsTree(BaseModel):
         logger.info(f"Starting pose: {start_pose}")
         # delta_pose = start_pose.inv() * target_effector
         delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
-        pose_tol = np.array([1e-4] * 3 + [1e-5] * 3)
+        pose_tol = np.array([1e-7] * 3 + [1e-7] * 3)
         ITERATIONS = 1000
         iter = 0
         dx = np.linalg.norm(delta_pose) * delta_pose * 0.005
@@ -231,7 +231,7 @@ class KinematicsTree(BaseModel):
             #     * np.array((current_effector.inv() * target_effector).pose.to_list())
             #     * scale
             # )
-            dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 3
+            dx = (np.array(target_effector.pose.to_list()) - current_effector.pose.to_list()) / 2
             # logger.debug(dx)
 
             iter += 1
