@@ -317,3 +317,18 @@ def test_dh_params() -> None:
     parameters = DHParameters.from_matrix(DH.hmatrix)
 
     np.testing.assert_allclose(parameters.to_list(), [a, alpha, d, theta], atol=1e-5)
+
+def test_dh_params_from_model() -> None:
+    kc = KinematicsConfig.parse(Path("./test/roc-x.yaml"))
+    kt = KinematicsTree(config=kc)
+    kt.update_joints_from_list([0.10, 0.1, 0.2])
+    
+    dhp = kt._get_dh_parameters()
+    
+def test_parameter_jacobian() -> None:
+    kc = KinematicsConfig.parse(Path("./test/roc-x.yaml"))
+    kt = KinematicsTree(config=kc)
+    kt.update_joints_from_list([10.0, 20.0, 30.0], mm_deg=True)
+    logger.info(kt.get_joint_values())
+    kt._get_parameter_jacobian()
+    pass

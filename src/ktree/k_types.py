@@ -112,6 +112,18 @@ class Vector(BaseModel):
                 raise ValueError(f"Cannot compare Vector with {other}")
         else:
             raise NotImplementedError(f"Cannot compare Vector with {other}")
+        
+    @staticmethod
+    def unit_x() -> "Vector":
+        return Vector(vector=np.array([1.0, 0.0, 0.0]))
+    
+    @staticmethod
+    def unit_y() -> "Vector":
+        return Vector(vector=np.array([0.0, 1.0, 0.0]))
+    
+    @staticmethod
+    def unit_z() -> "Vector":
+        return Vector(vector=np.array([0.0, 0.0, 1.0]))
 
 
 class JointType(str, Enum):
