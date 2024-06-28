@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 import pandas as pd
-from ktree.k_types import JointType, Pose, Transformation, Vector
+from ktree.k_types import DHParameters, JointType, Pose, Transformation, Vector
 from ktree.models import KinematicsConfig
 from loguru import logger
 from numpy.typing import NDArray
@@ -209,7 +209,7 @@ class KinematicsTree(BaseModel):
         # delta_pose = start_pose.inv() * target_effector
         delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
         pose_tol = np.array([1e-7] * 3 + [1e-7] * 3)
-        
+
         iter = 0
         dx = np.linalg.norm(delta_pose) * delta_pose * 0.005
         # dx = np.linalg.norm(np.array(delta_pose.pose.to_list())) * np.array(delta_pose.pose.to_list()) * 0.005
@@ -218,6 +218,7 @@ class KinematicsTree(BaseModel):
             if all(abs(dx) < pose_tol):
                 break
             if iter > ITERATIONS:
+                logger.warning("Max iterations reached. Solution might not have converged.")
                 break
             dq = np.linalg.pinv(self._get_jacobian()) @ dx
             self.update_joints_from_list(self.get_joint_values() + dq)
@@ -229,7 +230,7 @@ class KinematicsTree(BaseModel):
 
         logger.debug(f"Finished after {iter} iterations")
         logger.debug(f"Target pose {target_effector}")
-        logger.debug(current_effector)
+        logger.debug(f"Current pose {current_effector}")
         index = pd.MultiIndex.from_tuples(
             [
                 (f"{transformation.child}", coordinate)
@@ -238,6 +239,24 @@ class KinematicsTree(BaseModel):
             ]
         )
         return pd.DataFrame(np.array(iterations).reshape(-1, len(self.config.transformations) * 6), columns=index)
+
+    def _parameter_jacobian(self) -> NDArray:
+        return np.array([])
+
+    # def _get_dh_parameters(self) -> DHParameters:
+    #     for joint in self._actuated_joints:
+    #         dh_matrix = self.get_transformation(parent=self.config.base, child=joint.child).hmatrix
+    #         return DHParameters.from_matrix(dh_matrix)
+    # DHParameters.from_matrix()
+    # match joint.joint.type:
+    #     case JointType.PRISMATIC:
+
+    #     case JointType.REVOLUTE:
+    #         pass
+    #     case JointType.FIXED:
+    #         pass
+    #     case _:
+    #         pass
 
     def _iteration_row(self) -> list:
         return [

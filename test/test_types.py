@@ -3,6 +3,7 @@ import pytest
 import random
 import yaml
 from ktree.k_types import (
+    DHParameters,
     Joint,
     JointAxis,
     JointType,
@@ -70,6 +71,34 @@ def test_rotation() -> None:
         assert np.isclose(r.rz, rz)
 
     assert Rotation(rpy=[1.2, 1.3, 1.4]) == Rotation(rpy=[1.2, 1.3, 1.4])
+
+
+def test_transformation() -> None:
+    x = 100.0
+    y = 200.0
+    z = 300.0
+    rx = 10.0
+    ry = 20.0
+    rz = 30.0
+
+    trans = Vector(vector=[x, y, z])
+    rot = Rotation(rpy=[rx, ry, rz])
+    logger.info(trans)
+    logger.info(rot)
+    p = Pose(translation=Vector(vector=[x, y, z]), rotation=Rotation(rpy=[rx, ry, rz]))
+    logger.info(p)
+
+    t = Transformation(parent="A", child="B", pose=Pose().from_list([x, y, z, rx, ry, rz], mm_deg=True))
+    t2 = Transformation(
+        parent="A",
+        child="B",
+        pose=Pose(
+            translation=Vector(vector=np.array([x, y, z]) / 1000), rotation=Rotation(rpy=np.radians([rx, ry, rz]))
+        ),
+    )
+
+    np.testing.assert_allclose(t.pose.to_list(mm_deg=True), [x, y, z, rx, ry, rz])
+    np.testing.assert_allclose(t2.pose.to_list(mm_deg=True), [x, y, z, rx, ry, rz])
 
 
 def test_mult() -> None:
@@ -252,17 +281,39 @@ def test_quaternion() -> None:
     r = R.from_euler("xyz", [10, 20, 30], degrees=True)
     q = r.as_quat()
     assert np.allclose(q, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).quaternion.vector)
-    
+
 
 def test_axis_angle() -> None:
     r = R.from_euler("xyz", [10, 20, 30], degrees=True)
     q = r.as_rotvec()
     axis = q / np.linalg.norm(q)
     angle = np.linalg.norm(q)
-    
-    assert np.allclose(axis, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).axis_angle[0].vector)
-    
+
+    assert np.allclose(axis, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).axis_angle.axis.vector)
+    assert np.allclose(angle, Rotation(rpy=[np.radians(10), np.radians(20), np.radians(30)]).axis_angle.angle)
+    assert np.allclose(0.0, Rotation().axis_angle.angle)
+
+
 def test_mangnitude() -> None:
-    rpy = [10, 22.1234, 30]
-    r = R.from_euler("xyz", rpy, degrees=True)
-    assert np.isclose(r.magnitude(), Rotation(rpy=rpy, degrees=True).magnitude)
+    rpy = np.radians([10, 22.1234, 30])
+    r = R.from_euler("xyz", rpy)
+    assert np.isclose(r.magnitude(), Rotation(rpy=rpy).magnitude)
+
+
+def test_dh_params() -> None:
+    a, alpha, d, theta = 1.0, np.radians(10.0), 2.0, np.radians(20.0)
+    Tx = Transformation(
+        pose=Pose(translation=Vector(vector=[a, 0.0, 0.0]), rotation=Rotation()), parent="base", child="a"
+    )
+    Rx = Transformation(
+        pose=Pose(translation=Vector(), rotation=Rotation(rpy=[alpha, 0.0, 0.0])), parent="a", child="b"
+    )
+    Tz = Transformation(pose=Pose(translation=Vector(vector=[0.0, 0.0, d]), rotation=Rotation()), parent="b", child="c")
+    Rz = Transformation(
+        pose=Pose(translation=Vector(), rotation=Rotation(rpy=[0.0, 0.0, theta])), parent="c", child="d"
+    )
+
+    DH = Tx * Rx * Tz * Rz
+    parameters = DHParameters.from_matrix(DH.hmatrix)
+
+    np.testing.assert_allclose(parameters.to_list(), [a, alpha, d, theta], atol=1e-5)
