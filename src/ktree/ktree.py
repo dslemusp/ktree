@@ -309,7 +309,7 @@ class KinematicsTree(BaseModel):
         logger.opt(raw=True).info(f"Jacobian Alpha \n{jacobian_alpha}\n")
         logger.opt(raw=True).info(f"Jacobian Theta \n{jacobian_theta}\n")
 
-        return np.vstack((jacobian_a, jacobian_d, jacobian_alpha, jacobian_theta))
+        return np.hstack((jacobian_a, jacobian_d, jacobian_alpha, jacobian_theta))
 
     def _iteration_row(self) -> list:
         return [
