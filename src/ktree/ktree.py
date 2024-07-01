@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 import pandas as pd
-from ktree.k_types import DHParameters, JointType, Pose, Transformation, Vector
+from ktree.k_types import DHParameters, DHType, JointType, Pose, Transformation, Vector
 from ktree.models import KinematicsConfig
 from loguru import logger
 from numpy.typing import NDArray
@@ -126,7 +126,7 @@ class KinematicsTree(BaseModel):
             )
 
         return total_transformation
-    
+
     def get_end_effector(self) -> Transformation:
         return self.get_transformation(parent=self.config.base, child=self.config.end_effector)
 
@@ -246,46 +246,58 @@ class KinematicsTree(BaseModel):
     def _parameter_jacobian(self) -> NDArray:
         return np.array([])
 
-    def _get_dh_parameters(self) -> DHParameters:
+    def _get_dh_parameters(self) -> list[DHParameters]:
+        # for dhtype in DHType:
+        dhtype = DHType.MODIFIED
         parent_frame = self.config.base
-        for joint in self._actuated_joints:
+        list_dh_params: list[DHParameters] = [DHParameters()] * self._n_actuated_joints
+        for index, joint in enumerate(self._actuated_joints):
             dh_matrix = self.get_transformation(parent=parent_frame, child=joint.child).hmatrix
+            dh_params = DHParameters.from_matrix(matrix=dh_matrix, dhtype=dhtype)
+            logger.info(f"DH Params {dhtype} {dh_params} joint {parent_frame.upper()} -> {joint.child.upper()}")
             parent_frame = joint.child
-            dh_params = DHParameters.from_matrix(dh_matrix)
-            logger.info(f"DH Params {dh_params} joint {joint.child.upper()}")
-            
+            list_dh_params[index] = dh_params
+
+        return list_dh_params
+
     def _get_parameter_jacobian(self) -> NDArray:
-        
         def di(joint: str) -> Vector:
             Ri = self.get_transformation(parent=self.config.base, child=joint).pose.rotation
             pi = self.get_transformation(parent=joint, child=self.config.end_effector).pose.translation
 
-            return Ri * pi 
-        
+            return Ri * pi
+
         jacobian_a = np.zeros((3, self._n_actuated_joints))
         jacobian_d = np.zeros((3, self._n_actuated_joints))
         jacobian_alpha = np.zeros((3, self._n_actuated_joints))
         jacobian_theta = np.zeros((3, self._n_actuated_joints))
-        
-        joint_world_transforms = [self.get_transformation(parent=self.config.base, child=joint.child) for joint in self._actuated_joints]
-        
+
+        joint_world_transforms = [
+            self.get_transformation(parent=self.config.base, child=joint.child) for joint in self._actuated_joints
+        ]
+
         for joint_index, joint in enumerate(joint_world_transforms):
             if joint_index == 0:
                 jacobian_a[:, joint_index] = Vector.unit_x().vector
                 jacobian_alpha[:, joint_index] = (Vector.unit_x() @ self.get_end_effector().pose.translation).vector
             else:
-                jacobian_a[:, joint_index] = (joint_world_transforms[joint_index-1].pose.rotation * Vector.unit_x()).vector
-                jacobian_alpha[:, joint_index] = ((joint_world_transforms[joint_index-1].pose.rotation * Vector.unit_x()) @ di(joint.parent)).vector
-            
+                jacobian_a[:, joint_index] = (
+                    joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()
+                ).vector
+                jacobian_alpha[:, joint_index] = (
+                    (joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()) @ di(joint.parent)
+                ).vector
+
             jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
-            jacobian_theta[:, joint_index] = ((joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)).vector
-            
-        
+            jacobian_theta[:, joint_index] = (
+                (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
+            ).vector
+
         logger.opt(raw=True).info(f"Jacobian A \n{jacobian_a}\n")
         logger.opt(raw=True).info(f"Jacobian D \n{jacobian_d}\n")
         logger.opt(raw=True).info(f"Jacobian Alpha \n{jacobian_alpha}\n")
         logger.opt(raw=True).info(f"Jacobian Theta \n{jacobian_theta}\n")
-            
+
         return np.vstack((jacobian_a, jacobian_d, jacobian_alpha, jacobian_theta))
 
     def _iteration_row(self) -> list:

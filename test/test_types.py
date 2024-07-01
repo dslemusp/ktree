@@ -318,17 +318,29 @@ def test_dh_params() -> None:
 
     np.testing.assert_allclose(parameters.to_list(), [a, alpha, d, theta], atol=1e-5)
 
+
 def test_dh_params_from_model() -> None:
-    kc = KinematicsConfig.parse(Path("./test/roc-x.yaml"))
+    kc = KinematicsConfig.parse(Path("./test/2dof_rev.yaml"))
     kt = KinematicsTree(config=kc)
-    kt.update_joints_from_list([0.10, 0.1, 0.2])
-    
+    logger.info(kt.get_end_effector().hmatrix)
+
     dhp = kt._get_dh_parameters()
-    
+
+    expected_params = [
+        DHParameters(a=0.150, alpha=0.1, d=0.0, theta=0.0),
+        DHParameters(a=0.250, alpha=0.2, d=0.0, theta=0.0),
+    ]
+
+    for param, expected_param in zip(dhp, expected_params):
+        assert param == expected_param
+
+
 def test_parameter_jacobian() -> None:
-    kc = KinematicsConfig.parse(Path("./test/roc-x.yaml"))
+    kc = KinematicsConfig.parse(Path("./test/2dof_rev.yaml"))
     kt = KinematicsTree(config=kc)
-    kt.update_joints_from_list([10.0, 20.0, 30.0], mm_deg=True)
+    logger.info(kt.get_end_effector().pose.translation)
+    kt.update_joints_from_list([0.1, 0.2])
     logger.info(kt.get_joint_values())
-    kt._get_parameter_jacobian()
+    print(kt._get_parameter_jacobian())
+
     pass

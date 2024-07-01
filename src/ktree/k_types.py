@@ -112,15 +112,15 @@ class Vector(BaseModel):
                 raise ValueError(f"Cannot compare Vector with {other}")
         else:
             raise NotImplementedError(f"Cannot compare Vector with {other}")
-        
+
     @staticmethod
     def unit_x() -> "Vector":
         return Vector(vector=np.array([1.0, 0.0, 0.0]))
-    
+
     @staticmethod
     def unit_y() -> "Vector":
         return Vector(vector=np.array([0.0, 1.0, 0.0]))
-    
+
     @staticmethod
     def unit_z() -> "Vector":
         return Vector(vector=np.array([0.0, 0.0, 1.0]))
@@ -338,22 +338,119 @@ class JointAxis(str, Enum):
     Z = "z"
 
 
+class DHType(str, Enum):
+    STANDARD = "standard"
+    MODIFIED = "modified"
+    HAYATI = "hayati"
+
+
 class DHParameters(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    a: float = Field(default=0.0, description="Distance between z_i-1 and z_i along x_i")
-    alpha: float = Field(default=0.0, description="Angle between z_i-1 and z_i along x_i")
-    d: float = Field(default=0.0, description="Distance between x_i-1 and x_i along z_i-1")
-    theta: float = Field(default=0.0, description="Angle between x_i-1 and x_i along z_i-1")
+    a: float = Field(default=0.0)
+    alpha: float = Field(default=0.0)
+    d: float = Field(default=0.0)
+    theta: float = Field(default=0.0)
+    beta: float = Field(default=0.0)
+    dhtype: DHType = Field(default=DHType.MODIFIED)
 
     @staticmethod
-    def from_matrix(matrix: NDArray) -> "DHParameters":
-        return DHParameters(
-            a=matrix[0, 3],
-            alpha=np.arccos(matrix[2, 2]),
-            d=matrix[2, 3] / matrix[2, 2],
-            theta=np.arccos(matrix[0, 0]),
+    def from_matrix(matrix: NDArray, dhtype: DHType = DHType.MODIFIED) -> "DHParameters":
+        match dhtype:
+            case DHType.STANDARD:
+                return DHParameters(
+                    a=matrix[0, 3] / matrix[0, 0],
+                    alpha=np.arccos(matrix[2, 2]),
+                    d=matrix[2, 3],
+                    theta=np.arccos(matrix[0, 0]),
+                    dhtype=dhtype,
+                )
+            case DHType.MODIFIED:
+                return DHParameters(
+                    a=matrix[0, 3],
+                    alpha=np.arccos(matrix[2, 2]),
+                    d=matrix[2, 3] / matrix[2, 2],
+                    theta=np.arccos(matrix[0, 0]),
+                    dhtype=dhtype,
+                )
+            case DHType.HAYATI:
+                beta = np.arctan2(matrix[0, 2], matrix[2, 2])
+                return DHParameters(
+                    a=matrix[0, 3] / np.cos(beta),
+                    alpha=-np.arcsin(matrix[1, 2]),
+                    theta=np.arctan2(matrix[1, 0], matrix[1, 1]),
+                    beta=beta,
+                    dhtype=dhtype,
+                )
+            case _:
+                raise ValueError(f"Invalid DH type {type}")
+
+    def matrix(self) -> NDArray:
+        match self.dhtype:
+            case DHType.STANDARD:
+                return self._standard_matrix()
+            case DHType.MODIFIED:
+                return self._modified_matrix()
+            case DHType.HAYATI:
+                return self._hayati_matrix()
+            case _:
+                raise ValueError(f"Invalid DH type {type}")
+
+    def _standard_matrix(self) -> NDArray:
+        matrix = np.eye(4)
+        matrix[0, 0] = np.cos(self.theta)
+        matrix[0, 1] = -np.sin(self.theta) * np.cos(self.alpha)
+        matrix[0, 2] = np.sin(self.theta) * np.sin(self.alpha)
+        matrix[0, 3] = self.a * np.cos(self.theta)
+        matrix[1, 0] = np.sin(self.theta)
+        matrix[1, 1] = np.cos(self.theta) * np.cos(self.alpha)
+        matrix[1, 2] = -np.cos(self.theta) * np.sin(self.alpha)
+        matrix[1, 3] = self.a * np.sin(self.theta)
+        matrix[2, 1] = np.sin(self.alpha)
+        matrix[2, 2] = np.cos(self.alpha)
+        matrix[2, 3] = self.d
+
+        return matrix
+
+    def _modified_matrix(self) -> NDArray:
+        matrix = np.eye(4)
+        matrix[0, 0] = np.cos(self.theta)
+        matrix[0, 1] = -np.sin(self.theta)
+        matrix[0, 3] = self.a
+        matrix[1, 0] = np.sin(self.theta) * np.cos(self.alpha)
+        matrix[1, 1] = np.cos(self.theta) * np.cos(self.alpha)
+        matrix[1, 2] = -np.sin(self.alpha)
+        matrix[1, 3] = -self.d * np.sin(self.alpha)
+        matrix[2, 0] = np.sin(self.theta) * np.sin(self.alpha)
+        matrix[2, 1] = np.cos(self.theta) * np.sin(self.alpha)
+        matrix[2, 2] = np.cos(self.alpha)
+        matrix[2, 3] = self.d * np.cos(self.alpha)
+
+        return matrix
+
+    def _hayati_matrix(self) -> NDArray:
+        matrix = np.eye(4)
+        matrix[0, 0] = np.sin(self.alpha) * np.sin(self.beta) * np.sin(self.theta) + np.cos(self.beta) * np.cos(
+            self.theta
         )
+        matrix[0, 1] = np.sin(self.alpha) * np.sin(self.beta) * np.cos(self.theta) - np.sin(self.theta) * np.cos(
+            self.beta
+        )
+        matrix[0, 2] = np.sin(self.beta) * np.cos(self.alpha)
+        matrix[0, 3] = self.a * np.cos(self.beta)
+        matrix[1, 0] = np.sin(self.theta) * np.cos(self.alpha)
+        matrix[1, 1] = np.cos(self.alpha) * np.cos(self.theta)
+        matrix[1, 2] = -np.sin(self.alpha)
+        matrix[2, 0] = np.sin(self.alpha) * np.sin(self.theta) * np.cos(self.beta) - np.sin(self.beta) * np.cos(
+            self.theta
+        )
+        matrix[2, 1] = np.sin(self.alpha) * np.cos(self.beta) * np.cos(self.theta) + np.sin(self.beta) * np.sin(
+            self.theta
+        )
+        matrix[2, 2] = np.cos(self.alpha) * np.cos(self.beta)
+        matrix[2, 3] = -self.a * np.sin(self.beta)
+
+        return matrix
 
     def to_list(self) -> list[float]:
         return [self.a, self.alpha, self.d, self.theta]
@@ -363,6 +460,12 @@ class DHParameters(BaseModel):
             return np.allclose(self.to_list(), other.to_list())
         else:
             raise NotImplementedError(f"Cannot compare DHParameters with {other}")
+
+    def __str__(self) -> str:
+        return (
+            f"a: {self.a:.3g} m, alpha: {self.alpha:.3g} rad, d: {self.d:.3g} m, theta: {self.theta:.3g} rad, beta:"
+            f" {self.beta:.3g} rad"
+        )
 
 
 class Joint(BaseModel):
