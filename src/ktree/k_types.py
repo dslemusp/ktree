@@ -550,7 +550,14 @@ class Transformation(BaseModel):
             case list() | np.ndarray():
                 return Pose.from_list(v)
             case dict():
-                pose_dict = dict()
+                pose_dict = dict({
+                    X + M_SUFFIX: 0.0,
+                    Y + M_SUFFIX: 0.0,
+                    Z + M_SUFFIX: 0.0,
+                    RX + RAD_SUFFIX: 0.0,
+                    RY + RAD_SUFFIX: 0.0,
+                    RZ + RAD_SUFFIX: 0.0,
+                })
                 for key, value in v.items():
                     if key.endswith(MM_SUFFIX):
                         pose_dict[key.replace(MM_SUFFIX, M_SUFFIX)] = value / 1000

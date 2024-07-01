@@ -275,23 +275,34 @@ class KinematicsTree(BaseModel):
         joint_world_transforms = [
             self.get_transformation(parent=self.config.base, child=joint.child) for joint in self._actuated_joints
         ]
+        joints_type = [joint.joint.type for joint in self._actuated_joints]
 
-        for joint_index, joint in enumerate(joint_world_transforms):
+        for joint_index, (joint, joint_type) in enumerate(zip(joint_world_transforms, joints_type)):
             if joint_index == 0:
                 jacobian_a[:, joint_index] = Vector.unit_x().vector
                 jacobian_alpha[:, joint_index] = (Vector.unit_x() @ self.get_end_effector().pose.translation).vector
+                joint_parent = joint.child
             else:
                 jacobian_a[:, joint_index] = (
                     joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()
                 ).vector
                 jacobian_alpha[:, joint_index] = (
-                    (joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()) @ di(joint.parent)
+                    (joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()) @ di(joint_parent)
                 ).vector
+                joint_parent = joint.child
+                            
+            # jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
+            # jacobian_theta[:, joint_index] = (
+            #     (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
+            # ).vector
 
-            jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
-            jacobian_theta[:, joint_index] = (
+            match joint_type:
+                case JointType.PRISMATIC:
+                    jacobian_theta[:, joint_index] = (
                 (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
             ).vector
+                case JointType.REVOLUTE:
+                    jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
 
         logger.opt(raw=True).info(f"Jacobian A \n{jacobian_a}\n")
         logger.opt(raw=True).info(f"Jacobian D \n{jacobian_d}\n")

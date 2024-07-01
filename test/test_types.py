@@ -338,8 +338,11 @@ def test_dh_params_from_model() -> None:
 def test_parameter_jacobian() -> None:
     kc = KinematicsConfig.parse(Path("./test/2dof_rev.yaml"))
     kt = KinematicsTree(config=kc)
+    kt._get_dh_parameters()
+    
+    
+    kt.update_joints_from_list([0.1, 0.2, 0.3])
     logger.info(kt.get_end_effector().pose.translation)
-    kt.update_joints_from_list([0.1, 0.2])
     logger.info(kt.get_joint_values())
     print(kt._get_parameter_jacobian())
 
