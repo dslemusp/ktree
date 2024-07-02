@@ -354,6 +354,11 @@ class DHParameters(BaseModel):
     beta: float = Field(default=0.0)
     dhtype: DHType = Field(default=DHType.MODIFIED)
 
+    @field_validator("a", "alpha", "d", "theta", "beta", mode="after")
+    @classmethod
+    def round_parameters(cls, v: float) -> float:
+        return round(v, 8)
+
     @staticmethod
     def from_matrix(matrix: NDArray, dhtype: DHType = DHType.MODIFIED) -> "DHParameters":
         match dhtype:
@@ -550,14 +555,16 @@ class Transformation(BaseModel):
             case list() | np.ndarray():
                 return Pose.from_list(v)
             case dict():
-                pose_dict = dict({
-                    X + M_SUFFIX: 0.0,
-                    Y + M_SUFFIX: 0.0,
-                    Z + M_SUFFIX: 0.0,
-                    RX + RAD_SUFFIX: 0.0,
-                    RY + RAD_SUFFIX: 0.0,
-                    RZ + RAD_SUFFIX: 0.0,
-                })
+                pose_dict = dict(
+                    {
+                        X + M_SUFFIX: 0.0,
+                        Y + M_SUFFIX: 0.0,
+                        Z + M_SUFFIX: 0.0,
+                        RX + RAD_SUFFIX: 0.0,
+                        RY + RAD_SUFFIX: 0.0,
+                        RZ + RAD_SUFFIX: 0.0,
+                    }
+                )
                 for key, value in v.items():
                     if key.endswith(MM_SUFFIX):
                         pose_dict[key.replace(MM_SUFFIX, M_SUFFIX)] = value / 1000

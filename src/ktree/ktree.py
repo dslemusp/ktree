@@ -290,7 +290,7 @@ class KinematicsTree(BaseModel):
                     (joint_world_transforms[joint_index - 1].pose.rotation * Vector.unit_x()) @ di(joint_parent)
                 ).vector
                 joint_parent = joint.child
-                            
+
             # jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
             # jacobian_theta[:, joint_index] = (
             #     (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
@@ -299,8 +299,8 @@ class KinematicsTree(BaseModel):
             match joint_type:
                 case JointType.PRISMATIC:
                     jacobian_theta[:, joint_index] = (
-                (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
-            ).vector
+                        (joint_world_transforms[joint_index].pose.rotation * Vector.unit_z()) @ di(joint.child)
+                    ).vector
                 case JointType.REVOLUTE:
                     jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
 

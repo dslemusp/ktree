@@ -301,7 +301,7 @@ def test_mangnitude() -> None:
 
 
 def test_dh_params() -> None:
-    a, alpha, d, theta = 1.0, np.radians(10.0), 2.0, np.radians(20.0)
+    a, alpha, d, theta = 0.1234, np.radians(10.0), 20.5345, np.radians(20.0)
     Tx = Transformation(
         pose=Pose(translation=Vector(vector=[a, 0.0, 0.0]), rotation=Rotation()), parent="base", child="a"
     )
@@ -317,6 +317,9 @@ def test_dh_params() -> None:
     parameters = DHParameters.from_matrix(DH.hmatrix)
 
     np.testing.assert_allclose(parameters.to_list(), [a, alpha, d, theta], atol=1e-5)
+
+    parameters2 = DHParameters(a=a, alpha=alpha, d=d, theta=theta)
+    np.testing.assert_allclose(parameters2.matrix(), DH.hmatrix, atol=1e-5)
 
 
 def test_dh_params_from_model() -> None:
@@ -340,8 +343,7 @@ def test_parameter_jacobian() -> None:
     kc = KinematicsConfig.parse(Path("./test/2dof_rev.yaml"))
     kt = KinematicsTree(config=kc)
     kt._get_dh_parameters()
-    
-    
+
     kt.update_joints_from_list([0.1, 0.2, 0.3])
     logger.info(kt.get_end_effector().pose.translation)
     logger.info(kt.get_joint_values())
