@@ -254,7 +254,7 @@ class KinematicsTree(BaseModel):
         for index, joint in enumerate(self._actuated_joints):
             dh_matrix = self.get_transformation(parent=parent_frame, child=joint.child).hmatrix
             dh_params = DHParameters.from_matrix(matrix=dh_matrix, dhtype=dhtype)
-            logger.info(f"DH Params {dhtype} {dh_params} joint {parent_frame.upper()} -> {joint.child.upper()}")
+            logger.debug(f"DH Params {dhtype} {dh_params} joint {parent_frame.upper()} -> {joint.child.upper()}")
             parent_frame = joint.child
             list_dh_params[index] = dh_params
 
@@ -304,10 +304,10 @@ class KinematicsTree(BaseModel):
                 case JointType.REVOLUTE:
                     jacobian_d[:, joint_index] = (joint.pose.rotation * Vector.unit_z()).vector
 
-        logger.opt(raw=True).info(f"Jacobian A \n{jacobian_a}\n")
-        logger.opt(raw=True).info(f"Jacobian D \n{jacobian_d}\n")
-        logger.opt(raw=True).info(f"Jacobian Alpha \n{jacobian_alpha}\n")
-        logger.opt(raw=True).info(f"Jacobian Theta \n{jacobian_theta}\n")
+        logger.opt(raw=True).debug(f"Jacobian A \n{jacobian_a}\n")
+        logger.opt(raw=True).debug(f"Jacobian D \n{jacobian_d}\n")
+        logger.opt(raw=True).debug(f"Jacobian Alpha \n{jacobian_alpha}\n")
+        logger.opt(raw=True).debug(f"Jacobian Theta \n{jacobian_theta}\n")
 
         return np.hstack((jacobian_a, jacobian_d, jacobian_alpha, jacobian_theta))
 

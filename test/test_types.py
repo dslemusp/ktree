@@ -327,8 +327,9 @@ def test_dh_params_from_model() -> None:
     dhp = kt._get_dh_parameters()
 
     expected_params = [
-        DHParameters(a=0.150, alpha=0.1, d=0.0, theta=0.0),
-        DHParameters(a=0.250, alpha=0.2, d=0.0, theta=0.0),
+        DHParameters(a=0.150, alpha=0.1, d=0.1, theta=0.0),
+        DHParameters(a=0.250, alpha=0.2, d=0.1, theta=0.0),
+        DHParameters(a=0.200, alpha=0.3, d=0.1, theta=0.0),
     ]
 
     for param, expected_param in zip(dhp, expected_params):
