@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.3
+### Add
+- Update Rotation type to include support for definition using either quaternions, angle axis or matrix.
+
 ## 0.3.2
 ### Fix
 - Warning on multiple paths now shows the paths found in the tree.
