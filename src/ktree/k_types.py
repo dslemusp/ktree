@@ -242,6 +242,11 @@ class Rotation(BaseModel):
     def _rpy_validator(cls, rpy_value: NDArray[np.float_] | list[float] | None, info: ValidationInfo) -> NDArray:
         return _validate_list(rpy_value) if rpy_value is not None else rpy_value
 
+    @field_validator("rot_vec", mode="before")
+    @classmethod
+    def _rot_vec_validator(cls, rot_vec: NDArray[np.float_] | list[float] | None, info: ValidationInfo) -> NDArray:
+        return _validate_list(rot_vec) if rot_vec is not None else rot_vec
+
     @model_validator(mode="wrap")  # type: ignore[misc]
     def _validator(self, handler: ValidatorFunctionWrapHandler) -> Self:
         if isinstance(self, dict):

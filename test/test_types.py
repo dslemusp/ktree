@@ -59,12 +59,15 @@ def test_rotation() -> None:
         assert np.allclose(r.quaternion.vector, baseR.as_quat())
         assert np.allclose(r.rot_vec, baseR.as_rotvec())
 
-        r = Rotation()
-        r.matrix = R.from_euler("xyz", [rz, ry, rx], degrees=False).as_matrix()
+        r = Rotation(matrix=R.from_euler("xyz", [rz, ry, rx], degrees=False).as_matrix())
 
         assert np.isclose(r.rx, rz)
         assert np.isclose(r.ry, ry)
         assert np.isclose(r.rz, rx)
+
+        r = Rotation(rot_vec=[0.1, 0.2, 0.3])
+
+        assert np.allclose(r.rot_vec, [0.1, 0.2, 0.3])
 
     assert Rotation(rpy=[1.2, 1.3, 1.4]) == Rotation(rpy=[1.2, 1.3, 1.4])
 

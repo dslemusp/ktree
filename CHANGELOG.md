@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.4
+### Fix
+- Fix bug accepting `rot_vec` argument in `Rotation` as list.
+
 ## 0.3.3
 ### Add
 - Update Rotation type to include support for definition using either quaternions, angle axis or matrix.
