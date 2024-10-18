@@ -209,13 +209,11 @@ class KinematicsTree(BaseModel):
         target_effector.child = "target_effector"
         start_pose = self.get_transformation(parent=self.config.base, child=self.config.end_effector)
         logger.debug(f"Starting pose: {start_pose}")
-        # delta_pose = start_pose.inv() * target_effector
-        delta_pose = np.array(target_effector.pose.to_list()) - np.array(start_pose.pose.to_list())
+        
         pose_tol = np.array([1e-7] * 3 + [1e-7] * 3)
 
         iter = 0
-        dx = np.linalg.norm(delta_pose) * delta_pose * 0.005
-        # dx = np.linalg.norm(np.array(delta_pose.pose.to_list())) * np.array(delta_pose.pose.to_list()) * 0.005
+        dx = (np.array(target_effector.pose.to_list()) - start_pose.pose.to_list()) * ERROR_SCALE
         iterations = [self._iteration_row()]
         while True:
             if all(abs(dx) < pose_tol):
