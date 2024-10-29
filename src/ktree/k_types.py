@@ -78,6 +78,18 @@ class Vector(BaseModel):
 
     def norm(self) -> float:
         return float(np.linalg.norm(self.vector))
+    
+    @staticmethod
+    def unit_x() -> "Vector":
+        return Vector(vector=np.array([1.0, 0.0, 0.0]))
+    
+    @staticmethod
+    def unit_y() -> "Vector":
+        return Vector(vector=np.array([0.0, 1.0, 0.0]))
+    
+    @staticmethod
+    def unit_z() -> "Vector":
+        return Vector(vector=np.array([0.0, 0.0, 1.0]))
 
     def __add__(self, other: "Vector") -> "Vector":
         return Vector(vector=self.vector + other.vector)
@@ -173,6 +185,16 @@ class Rotation(BaseModel):
     @property
     def matrix(self) -> NDArray:
         return self.rot_z(self.rpy[2]) @ self.rot_y(self.rpy[1]) @ self.rot_x(self.rpy[0])
+    
+    @computed_field  # type: ignore[misc]
+    @property
+    def quaternion(self) -> "UnitQuaternion":
+        return UnitQuaternion.from_rotation(self)
+    
+    @computed_field  # type: ignore[misc]
+    @property
+    def angle_axis(self) -> "AngleAxis":
+        return AngleAxis.from_rotation(self)
 
     @matrix.setter
     def matrix(self, matrix: NDArray) -> None:
@@ -230,6 +252,41 @@ class Rotation(BaseModel):
         else:
             raise NotImplementedError(f"Cannot compare Rotation with {other}")
 
+class UnitQuaternion(BaseModel):
+    qx: float = Field(default=0.0, description="Quaternion x component")
+    qy: float = Field(default=0.0, description="Quaternion y component")
+    qz: float = Field(default=0.0, description="Quaternion z component")
+    qw: float = Field(default=1.0, description="Quaternion w component")
+
+    @staticmethod
+    def from_rotation(rotation: Rotation) -> "UnitQuaternion":
+        """
+        Converts a rotation matrix to a unit quaternion.
+        """
+        matrix = rotation.matrix
+        tr = matrix[0, 0] + matrix[1, 1] + matrix[2, 2]
+
+        if tr > 0:
+            S = np.sqrt(tr + 1.0) * 2
+            UnitQuaternion(qx= (matrix[2, 1] - matrix[1, 2]) / S,
+                            qy= (matrix[0, 2] - matrix[2, 0]) / S,
+                            qz= (matrix[1, 0] - matrix[0, 1]) / S,
+                            qw= 0.25 * S)
+            
+class AngleAxis(BaseModel):
+    axis: Vector = Field(default=Vector(), description="Axis of rotation")
+    angle: float = Field(default=0.0, description="Angle of rotation in radians")
+
+    @staticmethod
+    def from_rotation(rotation: Rotation) -> "AngleAxis":
+        """
+        Converts a rotation matrix to an angle-axis representation.
+        """
+        angle = np.arccos((np.trace(rotation.matrix) - 1) / 2)
+        axis = Vector(vector=np.array([rotation.matrix[2, 1] - rotation.matrix[1, 2],
+                                       rotation.matrix[0, 2] - rotation.matrix[2, 0],
+                                       rotation.matrix[1, 0] - rotation.matrix[0, 1]]))
+        return AngleAxis(axis=axis, angle=angle)
 
 class Pose(BaseModel):
     translation: Vector = Field(default=Vector(), description="Translation vector in SI units (meters).")
