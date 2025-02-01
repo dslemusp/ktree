@@ -1,7 +1,5 @@
 # Kinematic Tree
 
-Moved kinematic tree implementation from Pebble into a stand alone library.
-
 ## Installation
 
 ### As a poetry [^1.6] depedency
