@@ -27,7 +27,10 @@ def test_vector() -> None:
     for my_fail_list in [[1, 2], [1, 2, 3, 4]]:
         with pytest.raises(ValidationError) as val_err:
             Vector(vector=my_fail_list)
-            assert "List should have exactly 3 items after validation" in val_err.value
+            assert (
+                "List should have exactly 3 items after validation"
+                in val_err.value.errors()[0]["msg"]
+            )
 
     # Test unit vector
     v = Vector(vector=[10, 0, 0])
@@ -59,7 +62,9 @@ def test_rotation() -> None:
         assert np.allclose(r.quaternion.vector, baseR.as_quat())
         assert np.allclose(r.rot_vec, baseR.as_rotvec())
 
-        r = Rotation(matrix=R.from_euler("xyz", [rz, ry, rx], degrees=False).as_matrix())
+        r = Rotation(
+            matrix=R.from_euler("xyz", [rz, ry, rx], degrees=False).as_matrix()
+        )
 
         assert np.isclose(r.rx, rz)
         assert np.isclose(r.ry, ry)
@@ -83,7 +88,10 @@ def test_mult() -> None:
     x_vector = Vector(vector=[1, 0, 0])
     y_vector = Vector(vector=[0, 1, 0])
 
-    assert np.allclose(rotation1.matrix @ rotation2.matrix @ vector.vector, ((rotation1 * rotation2) * vector).vector)
+    assert np.allclose(
+        rotation1.matrix @ rotation2.matrix @ vector.vector,
+        ((rotation1 * rotation2) * vector).vector,  # type: ignore
+    )
     assert np.allclose((x_vector @ y_vector).vector, np.array([0, 0, 1]))
 
 
@@ -96,7 +104,9 @@ def homogeneous_rotation_matrix(axis: np.ndarray, angle: float) -> np.ndarray:
     return r.as_matrix()
 
 
-def multiply_homogeneous_transformations(matrix1: np.ndarray, matrix2: np.ndarray) -> None:
+def multiply_homogeneous_transformations(
+    matrix1: np.ndarray, matrix2: np.ndarray
+) -> None:
     return np.dot(matrix1, matrix2)
 
 
@@ -112,12 +122,19 @@ def test_translation_multiplication() -> None:
 
 
 def test_rotation_multiplication() -> None:
-    matrix1 = Transformation(parent="A", child="B", pose=[0, 0, 0, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
-    matrix2 = Transformation(parent="B", child="C", pose=[0, 0, 0, np.deg2rad(30), 0, 0])
+    matrix1 = Transformation(
+        parent="A",
+        child="B",
+        pose=[0, 0, 0, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)],
+    )
+    matrix2 = Transformation(
+        parent="B", child="C", pose=[0, 0, 0, np.deg2rad(30), 0, 0]
+    )
 
     expected_result = np.eye(4)
     expected_result[:3, :3] = (
-        R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)
+        R.from_euler("xyz", [20, 10, 45], degrees=True)
+        * R.from_euler("xyz", [30, 0, 0], degrees=True)
     ).as_matrix()
 
     result = matrix1 * matrix2
@@ -127,15 +144,23 @@ def test_rotation_multiplication() -> None:
 
 
 def test_translation_and_rotation_multiplication() -> None:
-    matrix1 = Transformation(parent="A", child="B", pose=[1, 2, 3, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)])
-    matrix2 = Transformation(parent="B", child="C", pose=[4, 5, 6, np.deg2rad(30), 0, 0])
+    matrix1 = Transformation(
+        parent="A",
+        child="B",
+        pose=[1, 2, 3, np.deg2rad(20), np.deg2rad(10), np.deg2rad(45)],
+    )
+    matrix2 = Transformation(
+        parent="B", child="C", pose=[4, 5, 6, np.deg2rad(30), 0, 0]
+    )
 
     expected_result = np.eye(4)
     expected_result[:3, :3] = (
-        R.from_euler("xyz", [20, 10, 45], degrees=True) * R.from_euler("xyz", [30, 0, 0], degrees=True)
+        R.from_euler("xyz", [20, 10, 45], degrees=True)
+        * R.from_euler("xyz", [30, 0, 0], degrees=True)
     ).as_matrix()
     expected_result[:3, 3:] = (
-        matrix1.pose.translation.vector + matrix1.pose.rotation.matrix @ matrix2.pose.translation.vector
+        matrix1.pose.translation.vector
+        + matrix1.pose.rotation.matrix @ matrix2.pose.translation.vector
     ).reshape(3, 1)
     result = matrix1 * matrix2
     # result = multiply_homogeneous_transformations(matrix1, matrix2)
@@ -157,7 +182,9 @@ def test_k_chain() -> None:
     kt = KinematicsTree(config=kc)
     end_eff_in_base = kt.get_transformation(parent=kc.base, child=kc.end_effector)
     logger.info(f"End effector in base: {end_eff_in_base}")
-    assert np.allclose(end_eff_in_base.pose.translation.vector, np.array([0.008, -0.006, -0.006]))
+    assert np.allclose(
+        end_eff_in_base.pose.translation.vector, np.array([0.008, -0.006, -0.006])
+    )
     # end_eff_in_base = k_tree.get_transformation(parent=k_config.base, child=k_config.end_effector)
 
     # assert np.allclose(end_eff_in_base.pose.translation.vector, np.array([0.022, 0.0022, 0.024]))
@@ -179,7 +206,9 @@ def test_yaml_dump() -> None:
 def test_multiple_paths_warning(caplog) -> None:  # type: ignore # noqa: F811
     kc = KinematicsConfig.parse(Path("./test/config.yaml"))
     kt = KinematicsTree(config=kc)
-    kt._add_transformation(Transformation(parent="yaskawa_base", child="cam", pose=Pose()))
+    kt._add_transformation(
+        Transformation(parent="yaskawa_base", child="cam", pose=Pose())
+    )
     kt.get_transformation(parent="yaskawa_base", child="cam")
 
     assert "Multiple paths" in caplog.text

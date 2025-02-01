@@ -23,39 +23,28 @@ jobs:
           submodules: 'recursive'
           token: ${{ secrets.CI_PAT }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+        # Install a specific version of uv.
+          version: "0.5.26"
 
-      - name: Install and configure Poetry
-        uses: snok/install-poetry@v1
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
         with:
-          version: 1.6.1
-          installer-parallel: true
+          python-version-file: "pyproject.toml"
 
-      # Necessary to pull in dependencies specified as github repositories.
-      - name: Authenticate with github.com
-        run: |
-          git config --global credential.helper store
-          git config --global --add "url.https://github.com/.insteadOf" "git@github.com:"
-          echo "${{ secrets.CI_GIT_CREDENTIALS }}" >> ~/.git-credentials
-
-      # # Necessary to pull in dependencies from our private Python repository.
-      - name: Authenticate poetry with cloudsmith.com
-        run: poetry config -- http-basic.rocsys token "${{ secrets.CLOUDSMITH_PYTHON_TOKEN  }}"
-
-      - name: Install dependencies
-        run: poetry install
-
-      - name: Lint and format
-        run: poetry run flake8
-        # continue-on-error: true
-
-      - name: Type Checking
-        run: poetry run mypy .
-        # continue-on-error: true
-
+      - name: Install the project
+        run: uv sync --all-groups 
+  
       - name: Run tests
-        run: poetry run pytest
-        
+        # For example, using `pytest`
+        run: uv run pytest
+
+      - name: Run linters
+        # For example, using `flake8`
+        run: uv run ruff check
+
+      - name: Run type check
+        # For example, using `mypy`
+        run: uv run mypy src

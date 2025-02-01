@@ -12,7 +12,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from typing_extensions import Self
+from typing_extensions import Self, Sequence
 
 M_SUFFIX = "_m"
 RAD_SUFFIX = "_rad"
@@ -27,7 +27,7 @@ RZ = "rz"
 POSE = [X, Y, Z, RX, RY, RZ]
 
 
-def _validate_list(v: NDArray[np.float_] | list[float]) -> NDArray:
+def _validate_list(v: NDArray[np.float64] | list[float]) -> NDArray:
     if isinstance(v, list):
         return np.array(v)
     return v
@@ -36,17 +36,19 @@ def _validate_list(v: NDArray[np.float_] | list[float]) -> NDArray:
 class Vector(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    vector: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+    vector: NDArray[np.float64] = Field(
+        default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3
+    )
     # mm: bool = Field(default=False)
 
-    # def __init__(self, vector: NDArray[np.float_] | list[float] = np.array([0.0, 0.0, 0.0])) -> None:
+    # def __init__(self, vector: NDArray[np.float64] | list[float] = np.array([0.0, 0.0, 0.0])) -> None:
     #     super().__init__(**dict(vector=vector))
     #     self.vector = _validate_list(self.vector)
 
     # validators
     @field_validator("vector", mode="before")
     @classmethod
-    def _vector_validation(cls, v: NDArray[np.float_] | list[float]) -> NDArray:
+    def _vector_validation(cls, v: NDArray[np.float64] | list[float]) -> NDArray:
         return _validate_list(v)
 
     @computed_field  # type: ignore[misc]
@@ -101,7 +103,7 @@ class Vector(BaseModel):
         return Vector(vector=np.cross(self.vector, other.vector))
 
     def __str__(self) -> str:
-        return f"x: {self.x*1000:.3f} mm, y: {self.y*1000:.3f} mm, z: {self.z*1000:.3f} mm"
+        return f"x: {self.x * 1000:.3f} mm, y: {self.y * 1000:.3f} mm, z: {self.z * 1000:.3f} mm"
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
@@ -150,7 +152,9 @@ class Quaternion(BaseModel):
     @staticmethod
     def from_matrix(matrix: NDArray) -> "Quaternion":
         # check orthogonality
-        assert np.allclose(matrix @ matrix.T, np.eye(3)), "Rotation matrix is not orthogonal."
+        assert np.allclose(matrix @ matrix.T, np.eye(3)), (
+            "Rotation matrix is not orthogonal."
+        )
 
         qw = np.sqrt(1 + matrix[0, 0] + matrix[1, 1] + matrix[2, 2]) / 2
         qx = (matrix[2, 1] - matrix[1, 2]) / (4 * qw)
@@ -196,9 +200,15 @@ class Quaternion(BaseModel):
         )
 
     def to_rpy(self) -> NDArray:
-        roll = np.arctan2(2 * (self.qw * self.qx + self.qy * self.qz), 1 - 2 * (self.qx**2 + self.qy**2))
+        roll = np.arctan2(
+            2 * (self.qw * self.qx + self.qy * self.qz),
+            1 - 2 * (self.qx**2 + self.qy**2),
+        )
         pitch = np.arcsin(2 * (self.qw * self.qy - self.qz * self.qx))
-        yaw = np.arctan2(2 * (self.qw * self.qz + self.qx * self.qy), 1 - 2 * (self.qy**2 + self.qz**2))
+        yaw = np.arctan2(
+            2 * (self.qw * self.qz + self.qx * self.qy),
+            1 - 2 * (self.qy**2 + self.qz**2),
+        )
         return np.array([roll, pitch, yaw])
 
     @staticmethod
@@ -208,7 +218,9 @@ class Quaternion(BaseModel):
             return Quaternion()
         axis = rot_vec / angle
         s = np.sin(angle / 2)
-        return Quaternion(qx=axis[0] * s, qy=axis[1] * s, qz=axis[2] * s, qw=np.cos(angle / 2))
+        return Quaternion(
+            qx=axis[0] * s, qy=axis[1] * s, qz=axis[2] * s, qw=np.cos(angle / 2)
+        )
 
     def to_rot_vec(self) -> NDArray:
         angle = 2 * np.arccos(self.qw)
@@ -232,23 +244,33 @@ class AngleAxis(BaseModel):
 class Rotation(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    rpy: NDArray[np.float_] = Field(default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3)
+    rpy: NDArray[np.float64] = Field(
+        default=np.array([0.0, 0.0, 0.0]), min_length=3, max_length=3
+    )
     quaternion: Quaternion = Field(default=Quaternion())
-    matrix: NDArray[np.float_] = Field(default=np.eye(3))
-    rot_vec: NDArray[np.float_] = Field(default=np.zeros(3))
+    matrix: NDArray[np.float64] = Field(default=np.eye(3))
+    rot_vec: NDArray[np.float64] = Field(default=np.zeros(3))
 
     @field_validator("rpy", mode="before")
     @classmethod
-    def _rpy_validator(cls, rpy_value: NDArray[np.float_] | list[float] | None, info: ValidationInfo) -> NDArray:
-        return _validate_list(rpy_value) if rpy_value is not None else rpy_value
+    def _rpy_validator(
+        cls, rpy_value: NDArray[np.float64] | list[float] | None, info: ValidationInfo
+    ) -> NDArray:
+        return (
+            _validate_list(rpy_value)
+            if rpy_value is not None
+            else np.array([0.0, 0.0, 0.0])
+        )
 
     @field_validator("rot_vec", mode="before")
     @classmethod
-    def _rot_vec_validator(cls, rot_vec: NDArray[np.float_] | list[float] | None, info: ValidationInfo) -> NDArray:
-        return _validate_list(rot_vec) if rot_vec is not None else rot_vec
+    def _rot_vec_validator(
+        cls, rot_vec: NDArray[np.float64] | list[float] | None, info: ValidationInfo
+    ) -> NDArray:
+        return _validate_list(rot_vec) if rot_vec is not None else np.zeros(3)
 
-    @model_validator(mode="wrap")  # type: ignore[misc]
-    def _validator(self, handler: ValidatorFunctionWrapHandler) -> Self:
+    @model_validator(mode="wrap")  # type: ignore[misc, arg-type]
+    def _validator(self, handler: ValidatorFunctionWrapHandler) -> "Rotation":
         if isinstance(self, dict):
             if self.get("rpy") is not None:
                 quaternion = Quaternion.from_rpy(self["rpy"])
@@ -327,8 +349,8 @@ class Rotation(BaseModel):
             # self.quaternion = Quaternion.from_matrix(self.matrix)
             # self.rpy = self.quaternion.to_rpy()
             # self.rot_vec = self.quaternion.to_rot_vec()
-        self.__dict__.update(fields)
-        return self
+        self.__dict__.update(fields)  # type: ignore[attr-defined]
+        return self  # type: ignore[return-value]
         # Find changed field
         # quaternion_quat = self.quaternion
         # rpy_quat = Quaternion.from_rpy(self.rpy)
@@ -354,15 +376,33 @@ class Rotation(BaseModel):
 
     @staticmethod
     def rot_x(angle: float) -> NDArray:
-        return np.array([[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]])
+        return np.array(
+            [
+                [1, 0, 0],
+                [0, np.cos(angle), -np.sin(angle)],
+                [0, np.sin(angle), np.cos(angle)],
+            ]
+        )
 
     @staticmethod
     def rot_y(angle: float) -> NDArray:
-        return np.array([[np.cos(angle), 0, np.sin(angle)], [0, 1, 0], [-np.sin(angle), 0, np.cos(angle)]])
+        return np.array(
+            [
+                [np.cos(angle), 0, np.sin(angle)],
+                [0, 1, 0],
+                [-np.sin(angle), 0, np.cos(angle)],
+            ]
+        )
 
     @staticmethod
     def rot_z(angle: float) -> NDArray:
-        return np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        return np.array(
+            [
+                [np.cos(angle), -np.sin(angle), 0],
+                [np.sin(angle), np.cos(angle), 0],
+                [0, 0, 1],
+            ]
+        )
 
     @computed_field  # type: ignore[misc]
     @property
@@ -461,7 +501,9 @@ class Rotation(BaseModel):
         """
         return 2 * np.arccos(self.quaternion.qw)
 
-    def __mul__(self, other: Self | Vector | NDArray[np.float_]) -> "Vector | Rotation":
+    def __mul__(
+        self, other: Self | Vector | NDArray[np.float64]
+    ) -> "Vector | Rotation":
         if isinstance(other, Vector):
             return Vector(vector=self.matrix @ other.vector)
         if isinstance(other, self.__class__):
@@ -479,9 +521,7 @@ class Rotation(BaseModel):
         raise NotImplementedError(f"Cannot multiply Rotation with {other}")
 
     def __str__(self) -> str:
-        return (
-            f"rx: {np.rad2deg(self.rx):.1f} deg, ry: {np.rad2deg(self.ry):.1f} deg, rz: {np.rad2deg(self.rz):.1f} deg"
-        )
+        return f"rx: {np.rad2deg(self.rx):.1f} deg, ry: {np.rad2deg(self.ry):.1f} deg, rz: {np.rad2deg(self.rz):.1f} deg"
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
@@ -491,22 +531,29 @@ class Rotation(BaseModel):
 
 
 class Pose(BaseModel):
-    translation: Vector = Field(default=Vector(), description="Translation vector in SI units (meters).")
+    translation: Vector = Field(
+        default=Vector(), description="Translation vector in SI units (meters)."
+    )
     rotation: Rotation = Field(
-        default=Rotation(), description="Rotation matrix in SI units (radians) or roll pitch yaw angles"
+        default=Rotation(),
+        description="Rotation matrix in SI units (radians) or roll pitch yaw angles",
     )
 
     @classmethod
-    def from_list(cls, pose: NDArray[np.float_] | list[float], mm_deg: bool = False) -> "Pose":
+    def from_list(
+        cls, pose: NDArray[np.float64] | list[float], mm_deg: bool = False
+    ) -> "Pose":
         if mm_deg:
             pose = np.array(pose, dtype=float)
             pose[0:3] = np.divide(pose[0:3], 1000)
             pose[3:6] = np.deg2rad(pose[3:6])
         return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
-    def to_list(self, mm_deg: bool = False) -> list[float]:
+    def to_list(self, mm_deg: bool = False) -> Sequence[float]:
         if mm_deg:
-            return list(self.translation.vector * 1000) + list(np.rad2deg(self.rotation.rpy))
+            return list(self.translation.vector * 1000) + list(
+                np.rad2deg(self.rotation.rpy)
+            )
         else:
             return list(self.translation.vector) + list(self.rotation.rpy)
 
@@ -515,7 +562,10 @@ class Pose(BaseModel):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.translation == other.translation and self.rotation == other.rotation
+            return (
+                self.translation == other.translation
+                and self.rotation == other.rotation
+            )
         else:
             raise NotImplementedError(f"Cannot compare Pose with {other}")
 
@@ -548,7 +598,9 @@ class DHParameters(BaseModel):
         return round(v, 8)
 
     @staticmethod
-    def from_matrix(matrix: NDArray, dhtype: DHType = DHType.MODIFIED) -> "DHParameters":
+    def from_matrix(
+        matrix: NDArray, dhtype: DHType = DHType.MODIFIED
+    ) -> "DHParameters":
         match dhtype:
             case DHType.STANDARD:
                 return DHParameters(
@@ -623,23 +675,23 @@ class DHParameters(BaseModel):
 
     def _hayati_matrix(self) -> NDArray:
         matrix = np.eye(4)
-        matrix[0, 0] = np.sin(self.alpha) * np.sin(self.beta) * np.sin(self.theta) + np.cos(self.beta) * np.cos(
+        matrix[0, 0] = np.sin(self.alpha) * np.sin(self.beta) * np.sin(
             self.theta
-        )
-        matrix[0, 1] = np.sin(self.alpha) * np.sin(self.beta) * np.cos(self.theta) - np.sin(self.theta) * np.cos(
-            self.beta
-        )
+        ) + np.cos(self.beta) * np.cos(self.theta)
+        matrix[0, 1] = np.sin(self.alpha) * np.sin(self.beta) * np.cos(
+            self.theta
+        ) - np.sin(self.theta) * np.cos(self.beta)
         matrix[0, 2] = np.sin(self.beta) * np.cos(self.alpha)
         matrix[0, 3] = self.a * np.cos(self.beta)
         matrix[1, 0] = np.sin(self.theta) * np.cos(self.alpha)
         matrix[1, 1] = np.cos(self.alpha) * np.cos(self.theta)
         matrix[1, 2] = -np.sin(self.alpha)
-        matrix[2, 0] = np.sin(self.alpha) * np.sin(self.theta) * np.cos(self.beta) - np.sin(self.beta) * np.cos(
+        matrix[2, 0] = np.sin(self.alpha) * np.sin(self.theta) * np.cos(
+            self.beta
+        ) - np.sin(self.beta) * np.cos(self.theta)
+        matrix[2, 1] = np.sin(self.alpha) * np.cos(self.beta) * np.cos(
             self.theta
-        )
-        matrix[2, 1] = np.sin(self.alpha) * np.cos(self.beta) * np.cos(self.theta) + np.sin(self.beta) * np.sin(
-            self.theta
-        )
+        ) + np.sin(self.beta) * np.sin(self.theta)
         matrix[2, 2] = np.cos(self.alpha) * np.cos(self.beta)
         matrix[2, 3] = -self.a * np.sin(self.beta)
 
@@ -662,11 +714,16 @@ class DHParameters(BaseModel):
 
 
 class Joint(BaseModel):
-    type: JointType = Field(default=JointType.FIXED, description="Degree of freedom type of the joint")
-    axis: JointAxis | None = Field(
-        default=None, description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)"
+    type: JointType = Field(
+        default=JointType.FIXED, description="Degree of freedom type of the joint"
     )
-    value: float | None = Field(default=None, description="Value of the joint in SI Units (meters or radians)")
+    axis: JointAxis | None = Field(
+        default=None,
+        description="If `type` is other than FIXED, axis of rotation or translation (x, y or z)",
+    )
+    value: float | None = Field(
+        default=None, description="Value of the joint in SI Units (meters or radians)"
+    )
 
     @model_validator(mode="after")  # type: ignore[misc]
     def _axis_validator(self) -> "Joint":
@@ -708,12 +765,16 @@ class Transformation(BaseModel):
             " roll-pitch-yaw convention."
         ),
     )
-    parent: str = Field(..., description="Parent frame. The definition of the pose is wrt to this frame")
+    parent: str = Field(
+        ..., description="Parent frame. The definition of the pose is wrt to this frame"
+    )
     child: str = Field(
         ...,
         description="Child frame. The pose defines the origin and orientation of the child wrt to the parent",
     )
-    joint: Joint = Field(default=Joint(), description="Joint connecting parent and child")
+    joint: Joint = Field(
+        default=Joint(), description="Joint connecting parent and child"
+    )
 
     @model_validator(mode="after")  # type: ignore[misc]
     def _joint_validator(self) -> "Transformation":
@@ -738,7 +799,9 @@ class Transformation(BaseModel):
 
     @field_validator("pose", mode="before")
     @classmethod
-    def _pose_validator(cls, v: Pose | NDArray[np.float_] | list[float] | dict[str, float]) -> Pose:
+    def _pose_validator(
+        cls, v: Pose | NDArray[np.float64] | list[float] | dict[str, float]
+    ) -> Pose:
         match v:
             case list() | np.ndarray():
                 return Pose.from_list(v)
@@ -757,11 +820,15 @@ class Transformation(BaseModel):
                     if key.endswith(MM_SUFFIX):
                         pose_dict[key.replace(MM_SUFFIX, M_SUFFIX)] = value / 1000
                     elif key.endswith(DEG_SUFFIX):
-                        pose_dict[key.replace(DEG_SUFFIX, RAD_SUFFIX)] = np.deg2rad(value)
+                        pose_dict[key.replace(DEG_SUFFIX, RAD_SUFFIX)] = np.deg2rad(
+                            value
+                        )
                     elif key.endswith(RAD_SUFFIX) | key.endswith(M_SUFFIX):
                         pose_dict[key] = value
                     else:
-                        raise ValueError(f"Invalid key {key} in pose dict. Check config file.")
+                        raise ValueError(
+                            f"Invalid key {key} in pose dict. Check config file."
+                        )
                 return Pose.from_list(
                     [
                         pose_dict[X + M_SUFFIX],
@@ -842,7 +909,11 @@ class Transformation(BaseModel):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             inv_trasformation = other.inv()
-            return (self.parent == other.parent and self.child == other.child and self.pose == other.pose) or (
+            return (
+                self.parent == other.parent
+                and self.child == other.child
+                and self.pose == other.pose
+            ) or (
                 self.parent == inv_trasformation.parent
                 and self.child == inv_trasformation.child
                 and self.pose == inv_trasformation.pose

@@ -1,64 +1,43 @@
-[tool.poetry]
-name = "research-ktree"
-version = "0.3.4"
-description = "Research python kinematic library"
-authors = ["Daniel Lemus <dlemus@rocsys.com>"]
+[project]
+name = "ktree"
+version = "0.4.0"
+description = "Add your description here"
 readme = "README.md"
-packages = [{include = "ktree", from = "src"}]
-
-[tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-numpy = "^1.25.0"
-pyyaml = "^6.0.1"
-loguru = "^0.7.0"
-types-pyyaml = "^6.0.12.11"
-pydantic = "^2.3.0"
-ipython = "^8.14.0"
-networkx = "^3.1"
-
-[[tool.poetry.source]]
-name = "rocsys"
-url = "https://dl.cloudsmith.io/basic/rocsys/python/python/simple/"
-priority = 'explicit'
-
-
-[tool.poetry.group.lint.dependencies]
-flake8 = "^6.1.0"
-flake8-isort = "^6.0.0"
-flake8-black = "^0.3.6"
-black = "^23.7.0"
-isort = "^5.12.0"
-mypy = "^1.5.0"
-
-[tool.poetry.group.test.dependencies]
-pytest = "^7.4.0"
-scipy = "^1.11.3"
-pytest-loguru = "^0.3.0"
-
-
-[tool.poetry.group.debug.dependencies]
-debugpy = "^1.6.7.post1"
+authors = [
+    { name = "Daniel Lemus Perez", email = "dslemusp@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "networkx>=3.4.2",
+    "numpy>=2.2.2",
+    "pydantic>=2.10.6",
+    "pyyaml>=6.0.2",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.isort]
-profile = "black"
-# https://github.com/PyCQA/isort/issues/457
-no_sections = true
-
-[tool.black]
-line-length = 120
-preview = true
+[dependency-groups]
+lint = [
+    "mypy>=1.14.1",
+    "ruff>=0.9.4",
+    "types-pyyaml>=6.0.12.20241230",
+]
+test = [
+    "pytest>=8.3.4",
+    "pytest-loguru>=0.4.0",
+    "scipy>=1.15.1",
+]
 
 [tool.mypy]
+exclude = ['/.venv/']
 plugins = [
     "pydantic.mypy",
     "numpy.typing.mypy_plugin",
 ]
 ignore_missing_imports = true
-follow_imports = "skip"
 disallow_untyped_defs = true
 no_implicit_optional = true
 implicit_reexport = true

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.4.0
+### Feature
+- Change to uv as dependency manager.
+
 ## 0.3.4
 ### Fix
 - Fix bug accepting `rot_vec` argument in `Rotation` as list.
