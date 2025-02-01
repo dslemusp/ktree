@@ -12,7 +12,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from typing_extensions import Self
+from typing_extensions import Self, Sequence
 
 M_SUFFIX = "_m"
 RAD_SUFFIX = "_rad"
@@ -256,17 +256,21 @@ class Rotation(BaseModel):
     def _rpy_validator(
         cls, rpy_value: NDArray[np.float64] | list[float] | None, info: ValidationInfo
     ) -> NDArray:
-        return _validate_list(rpy_value) if rpy_value is not None else rpy_value
+        return (
+            _validate_list(rpy_value)
+            if rpy_value is not None
+            else np.array([0.0, 0.0, 0.0])
+        )
 
     @field_validator("rot_vec", mode="before")
     @classmethod
     def _rot_vec_validator(
         cls, rot_vec: NDArray[np.float64] | list[float] | None, info: ValidationInfo
     ) -> NDArray:
-        return _validate_list(rot_vec) if rot_vec is not None else rot_vec
+        return _validate_list(rot_vec) if rot_vec is not None else np.zeros(3)
 
-    @model_validator(mode="wrap")  # type: ignore[misc]
-    def _validator(self, handler: ValidatorFunctionWrapHandler) -> Self:
+    @model_validator(mode="wrap")  # type: ignore[misc, arg-type]
+    def _validator(self, handler: ValidatorFunctionWrapHandler) -> "Rotation":
         if isinstance(self, dict):
             if self.get("rpy") is not None:
                 quaternion = Quaternion.from_rpy(self["rpy"])
@@ -345,8 +349,8 @@ class Rotation(BaseModel):
             # self.quaternion = Quaternion.from_matrix(self.matrix)
             # self.rpy = self.quaternion.to_rpy()
             # self.rot_vec = self.quaternion.to_rot_vec()
-        self.__dict__.update(fields)
-        return self
+        self.__dict__.update(fields)  # type: ignore[attr-defined]
+        return self  # type: ignore[return-value]
         # Find changed field
         # quaternion_quat = self.quaternion
         # rpy_quat = Quaternion.from_rpy(self.rpy)
@@ -545,7 +549,7 @@ class Pose(BaseModel):
             pose[3:6] = np.deg2rad(pose[3:6])
         return cls(translation=Vector(vector=pose[:3]), rotation=Rotation(rpy=pose[3:]))
 
-    def to_list(self, mm_deg: bool = False) -> list[float]:
+    def to_list(self, mm_deg: bool = False) -> Sequence[float]:
         if mm_deg:
             return list(self.translation.vector * 1000) + list(
                 np.rad2deg(self.rotation.rpy)

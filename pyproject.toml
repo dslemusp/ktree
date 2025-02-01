@@ -32,12 +32,12 @@ test = [
 ]
 
 [tool.mypy]
+exclude = ['/.venv/']
 plugins = [
     "pydantic.mypy",
     "numpy.typing.mypy_plugin",
 ]
 ignore_missing_imports = true
-follow_imports = "skip"
 disallow_untyped_defs = true
 no_implicit_optional = true
 implicit_reexport = true
