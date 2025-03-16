@@ -2,10 +2,10 @@
 
 ## Installation
 
-### As a poetry [^1.6] depedency
+I use [uv](https://docs.astral.sh/uv/guides/install-python/) as python dependency manager. Once installed just run
 
 ```shell
-poetry add git+ssh://git@github.com:rocsys/research-ktree.git#0.3.1  # 0.3.1 as example (modify this for different versions)
+uv sync
 ```
 
 ## Usage
@@ -14,15 +14,12 @@ The library allows the creation of a static (and soon dynamic) kinematic tree ba
 
 ```yaml
 
-base_frame: yaskawa_base
+base_frame: base
 end_effector_frame: conn
 
 kinematics_chain:
-  - parent: yaskawa_base
-    child: yaskawa_eff
-    joint:
-      axis: x
-      type: prismatic
+  - parent: base
+    child: end_effector
     pose:
       x_mm: 1.0
       y_m: 0.002
@@ -30,7 +27,7 @@ kinematics_chain:
       rx_deg: 180.0
       ry_rad: 0.0
       rz_deg: 0.0
-  - parent: yaskawa_eff
+  - parent: end_effector
     child: checkered_board
     pose: 
       x_mm: 4.0
